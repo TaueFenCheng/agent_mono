@@ -1,0 +1,29 @@
+{
+  "name": "@tang-agent/cli",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "tang-agent": "dist/index.js"
+  },
+  "scripts": {
+    "dev": "tsx src/index.tsx",
+    "build": "rolldown -c rolldown.config.mjs",
+    "test": "vitest run --passWithNoTests",
+    "lint": "echo 'cli lint skipped'"
+  },
+  "dependencies": {
+    "@tang-agent/core-types": "workspace:*",
+    "@tang-agent/sdk-ts": "workspace:*",
+    "ink": "^5.1.0",
+    "ink-text-input": "^6.0.0",
+    "react": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "rolldown": "1.0.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}

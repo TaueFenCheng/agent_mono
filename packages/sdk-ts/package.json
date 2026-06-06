@@ -1,0 +1,19 @@
+{
+  "name": "@tang-agent/sdk-ts",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "lint": "echo 'sdk-ts lint skipped'"
+  },
+  "dependencies": {
+    "@tang-agent/core-types": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
+  }
+}

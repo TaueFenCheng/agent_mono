@@ -1,0 +1,14 @@
+node_modules
+.pnpm-store
+pnpm-lock.yaml
+.next
+release
+dist
+coverage
+.env
+.env.*
+__pycache__
+.pytest_cache
+.venv
+.DS_Store
+*.tsbuildinfo

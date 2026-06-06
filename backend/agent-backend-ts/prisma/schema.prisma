@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model CheckpointMigration {
+  v Int @id
+
+  @@map("checkpoint_migrations")
+}
+
+model AgentRun {
+  runId        String   @id @map("run_id")
+  threadId     String   @map("thread_id")
+  prompt       String
+  output       String
+  provider     String   @default("qwen")
+  model        String?
+  checkpointId String?  @map("checkpoint_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([threadId, createdAt], map: "idx_agent_runs_thread_created_at")
+  @@map("agent_runs")
+}
+
+model AgentMemoryFact {
+  id         String   @id
+  threadId   String   @map("thread_id")
+  content    String
+  category   String   @default("context")
+  confidence Float    @default(0.7)
+  metadata   Json     @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([threadId, createdAt(sort: Desc)], map: "idx_agent_memory_thread_id")
+  @@map("agent_memory_facts")
+}
+
+model SubagentRun {
+  runId      String   @id @map("run_id")
+  threadId   String   @map("thread_id")
+  prompt     String?
+  summary    String
+  partial    Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+  taskRuns   SubagentTaskRun[]
+
+  @@index([threadId, createdAt], map: "idx_subagent_runs_thread_created_at")
+  @@map("subagent_runs")
+}
+
+model SubagentTaskRun {
+  id           String   @id @default(cuid())
+  runId        String   @map("run_id")
+  taskId       String   @map("task_id")
+  role         String
+  status       String
+  threadId     String   @map("thread_id")
+  provider     String?
+  model        String?
+  output       String?
+  error        String?
+  checkpointId String?  @map("checkpoint_id")
+  startedAt    DateTime @map("started_at")
+  endedAt      DateTime @map("ended_at")
+  durationMs   Int      @map("duration_ms")
+  createdAt    DateTime @default(now()) @map("created_at")
+  run          SubagentRun @relation(fields: [runId], references: [runId], onDelete: Cascade)
+
+  @@index([runId], map: "idx_subagent_task_runs_run_id")
+  @@index([threadId], map: "idx_subagent_task_runs_thread_id")
+  @@unique([runId, taskId], map: "uq_subagent_task_run")
+  @@map("subagent_task_runs")
+}
+
+model Attachment {
+  id              String            @id @default(cuid())
+  threadId        String?           @map("thread_id")
+  runId           String?           @map("run_id")
+  fileName        String            @map("file_name")
+  contentType     String            @map("content_type")
+  sizeBytes       Int               @map("size_bytes")
+  storageProvider String            @default("s3") @map("storage_provider")
+  bucket          String
+  objectKey       String            @unique @map("object_key")
+  sha256          String
+  status          String            @default("uploaded")
+  error           String?
+  parser          String?
+  textContent     String?           @map("text_content")
+  metadata        Json              @default("{}")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @default(now()) @updatedAt @map("updated_at")
+  chunks          AttachmentChunk[]
+
+  @@index([threadId, createdAt(sort: Desc)], map: "idx_attachments_thread_created_at")
+  @@index([runId], map: "idx_attachments_run_id")
+  @@map("attachments")
+}
+
+model AttachmentChunk {
+  id           String     @id @default(cuid())
+  attachmentId String     @map("attachment_id")
+  threadId     String?    @map("thread_id")
+  chunkIndex   Int        @map("chunk_index")
+  content      String
+  tokenCount   Int        @default(0) @map("token_count")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  attachment   Attachment @relation(fields: [attachmentId], references: [id], onDelete: Cascade)
+
+  @@unique([attachmentId, chunkIndex], map: "uq_attachment_chunk_index")
+  @@index([attachmentId], map: "idx_attachment_chunks_attachment_id")
+  @@index([threadId], map: "idx_attachment_chunks_thread_id")
+  @@map("attachment_chunks")
+}

@@ -1,0 +1,26 @@
+{
+  "name": "tang-agent-monorepo",
+  "private": true,
+  "version": "0.4.0",
+  "packageManager": "pnpm@10.28.0",
+  "scripts": {
+    "dev:web": "pnpm --filter @tang-agent/web dev",
+    "dev:desktop": "pnpm --filter @tang-agent/desktop-electron dev",
+    "dev:desktop:tauri": "pnpm --filter @tang-agent/desktop dev",
+    "dev:cli": "pnpm --filter @tang-agent/cli dev",
+    "dev:api:ts": "pnpm --filter @tang-agent/agent-backend-ts dev",
+    "dev:api:python": "cd backend/agent-backend-python && uv run uvicorn app.main:app --reload --port 8081",
+    "build": "pnpm --filter @tang-agent/core-types build && pnpm --filter @tang-agent/agent-core build && pnpm --filter @tang-agent/sdk-ts build && pnpm --filter @tang-agent/ui build && pnpm --filter @tang-agent/agent-backend-ts build && pnpm --filter @tang-agent/web build && pnpm --filter @tang-agent/cli build && pnpm --filter @tang-agent/desktop-electron build",
+    "build:desktop:tauri": "pnpm --filter @tang-agent/desktop build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "db:up": "docker compose -f infra/docker-compose.yml up -d",
+    "db:down": "docker compose -f infra/docker-compose.yml down",
+    "fix:electron": "pnpm --filter @tang-agent/desktop-electron run fix:electron"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}
