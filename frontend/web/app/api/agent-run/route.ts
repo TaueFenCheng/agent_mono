@@ -1,5 +1,13 @@
 import { NextResponse } from "next/server";
 
+interface AgentRunResponseEnvelope {
+  code: number | string;
+  message: string;
+  data: {
+    output: string;
+  } | null;
+}
+
 export async function POST(req: Request) {
   const payload = (await req.json()) as { message: string; threadId?: string };
   const baseUrl = process.env.NEXT_PUBLIC_AGENT_API_BASE_URL ?? "http://127.0.0.1:8080";
@@ -13,10 +21,22 @@ export async function POST(req: Request) {
     })
   });
 
+  const result = (await response.json()) as AgentRunResponseEnvelope | Record<string, unknown>;
+
   if (!response.ok) {
-    return NextResponse.json({ error: "upstream failed" }, { status: 502 });
+    return NextResponse.json(result, { status: response.status || 502 });
   }
 
-  const data = (await response.json()) as { output: string };
-  return NextResponse.json({ output: data.output });
+  if (!("code" in result) || result.code !== 0 || !("data" in result) || !result.data) {
+    return NextResponse.json(
+      {
+        code: 502,
+        message: "upstream returned invalid payload",
+        data: null
+      },
+      { status: 502 }
+    );
+  }
+
+  return NextResponse.json({ output: result.data.output });
 }

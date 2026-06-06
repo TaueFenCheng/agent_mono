@@ -3,10 +3,12 @@ import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module.js";
 import { GlobalExceptionFilter } from "./common/filters/global-exception.filter.js";
+import { SuccessResponseInterceptor } from "./common/interceptors/success-response.interceptor.js";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useGlobalFilters(new GlobalExceptionFilter());
+  app.useGlobalInterceptors(new SuccessResponseInterceptor());
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,

@@ -79,10 +79,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     response.setHeader("x-request-id", requestId);
 
     const responseBody = {
-      success: false,
-      error: {
-        code,
-        message,
+      code,
+      message,
+      data: null,
+      details: {
         details,
         statusCode: status,
         path: request.url,
