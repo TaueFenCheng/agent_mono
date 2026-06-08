@@ -1,7 +1,7 @@
 export const brandName = "tangAgent";
 
 export { AgentWorkspace } from "./components/agent-workspace";
-export type { AgentWorkspaceProps, AgentWorkspaceSendInput } from "./components/agent-workspace";
+export type { AgentWorkspaceProps, AgentWorkspaceSendInput, ModelOption } from "./components/agent-workspace";
 
 export { Button, buttonVariants } from "./components/ui/button";
 export { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./components/ui/card";

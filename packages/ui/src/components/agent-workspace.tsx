@@ -29,6 +29,15 @@ export interface AgentWorkspaceSendInput {
   message: string;
   attachments?: AttachmentData[];
   files?: File[];
+  provider?: string;
+  model?: string;
+}
+
+export interface ModelOption {
+  id: string;
+  name: string;
+  provider: string;
+  model: string;
 }
 
 export interface AgentWorkspaceProps {
@@ -38,6 +47,9 @@ export interface AgentWorkspaceProps {
   initialPrompt?: string;
   initialSessions?: AgentWorkspaceSession[];
   enableThemeToggle?: boolean;
+  modelOptions?: ModelOption[];
+  selectedModelId?: string;
+  onModelChange?: (modelId: string) => void;
   loadSessions?: () => Promise<AgentWorkspaceSession[]>;
   onSend: (input: AgentWorkspaceSendInput) => Promise<string>;
 }
@@ -92,6 +104,9 @@ export function AgentWorkspace({
   initialPrompt = "你是什么模型？你能做什么？",
   initialSessions = [],
   enableThemeToggle = true,
+  modelOptions = [],
+  selectedModelId,
+  onModelChange,
   loadSessions,
   onSend
 }: AgentWorkspaceProps) {
@@ -213,11 +228,14 @@ export function AgentWorkspace({
     setInput("");
 
     try {
+      const selectedModel = modelOptions.find((m) => m.id === selectedModelId);
       const output = await onSend({
         sessionId: pendingSession.id,
         message,
         attachments: composerAttachments.map((item) => item.data),
-        files: composerAttachments.map((item) => item.file)
+        files: composerAttachments.map((item) => item.file),
+        provider: selectedModel?.provider,
+        model: selectedModel?.model
       });
       const assistantMessage: AgentWorkspaceMessage = {
         id: newId("assistant"),
@@ -317,16 +335,32 @@ export function AgentWorkspace({
                 <CardTitle>{title}</CardTitle>
                 <CardDescription>{description}</CardDescription>
               </div>
-              {enableThemeToggle ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
-                  aria-label="切换主题"
-                >
-                  {theme === "dark" ? "浅色" : "深色"}
-                </Button>
-              ) : null}
+              <div className="flex items-center gap-2">
+                {modelOptions.length > 0 ? (
+                  <select
+                    className="rounded-md border border-input/70 bg-background px-3 py-1.5 text-sm text-foreground hover:bg-foreground/5 focus:outline-none focus:ring-2 focus:ring-ring"
+                    value={selectedModelId || modelOptions[0]?.id || ""}
+                    onChange={(e) => onModelChange?.(e.target.value)}
+                    aria-label="选择模型"
+                  >
+                    {modelOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+                {enableThemeToggle ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
+                    aria-label="切换主题"
+                  >
+                    {theme === "dark" ? "浅色" : "深色"}
+                  </Button>
+                ) : null}
+              </div>
             </div>
           </CardHeader>
           <CardContent className="grid h-[calc(100%-5.5rem)] grid-rows-[1fr_auto] gap-3">

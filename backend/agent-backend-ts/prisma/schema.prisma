@@ -7,11 +7,9 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model CheckpointMigration {
-  v Int @id
-
-  @@map("checkpoint_migrations")
-}
+// Note: checkpoint tables are managed by LangGraph's PostgresSaver.setup()
+// They are NOT in this Prisma schema because they use different column types (BYTEA, etc.)
+// The tables will be auto-created when the agent runtime starts.
 
 model AgentRun {
   runId        String   @id @map("run_id")
@@ -77,6 +75,22 @@ model SubagentTaskRun {
   @@index([threadId], map: "idx_subagent_task_runs_thread_id")
   @@unique([runId, taskId], map: "uq_subagent_task_run")
   @@map("subagent_task_runs")
+}
+
+model ModelConfig {
+  id        String   @id @default(cuid())
+  name      String   // 配置名称，如 "我的 DeepSeek"
+  provider  String   // provider 标识，如 "deepseek" 或自定义名称
+  model     String   // 模型名称，如 "deepseek-chat"
+  apiKey    String   // API Key
+  baseUrl   String   // API Base URL
+  isActive  Boolean  @default(false) // 是否为当前激活的配置
+  isCustom  Boolean  @default(false) // 是否为用户自定义的 Provider
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([provider, name])
+  @@map("model_configs")
 }
 
 model Attachment {

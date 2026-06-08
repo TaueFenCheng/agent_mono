@@ -12,6 +12,8 @@ import { SubagentController } from "./subagent/subagent.controller.js";
 import { SubagentService } from "./subagent/subagent.service.js";
 import { AttachmentController } from "./attachment/attachment.controller.js";
 import { AttachmentService } from "./attachment/attachment.service.js";
+import { ModelConfigController, ProviderController } from "./agent/model-config.controller.js";
+import { ModelConfigService } from "./agent/model-config.service.js";
 import postgresConfig from "./config/postgres.config.js";
 import redisConfig from "./config/redis.config.js";
 import authConfig from "./config/auth.config.js";
@@ -48,7 +50,7 @@ import { ObjectStorageModule } from "./attachment/object-storage.module.js";
       })
     })
   ],
-  controllers: [AuthController, AgentController, SubagentController, AttachmentController, HealthController],
+  controllers: [AuthController, AgentController, SubagentController, AttachmentController, HealthController, ModelConfigController, ProviderController],
   providers: [
     {
       provide: APP_GUARD,
@@ -58,6 +60,7 @@ import { ObjectStorageModule } from "./attachment/object-storage.module.js";
     AgentService,
     SubagentService,
     AttachmentService,
+    ModelConfigService,
     AgentQueueService,
     AgentQueueProcessor
   ]

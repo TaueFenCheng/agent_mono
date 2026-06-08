@@ -24,12 +24,32 @@ frontend/web/
 │   ├── layout.tsx               # 根布局（Server Component，无数据获取）
 │   ├── page.tsx                 # 首页（"use client"）
 │   ├── globals.css              # Tailwind 入口 + CSS 变量主题
-│   └── api/
-│       ├── agent-run/route.ts   # POST 代理 → 后端 /v1/agents/runs
-│       └── health/route.ts      # GET 代理 → 后端 /health
+│   ├── api/
+│   │   ├── agent-run/route.ts   # POST 代理 → 后端 /v1/agents/runs
+│   │   ├── health/route.ts      # GET 代理 → 后端 /health
+│   │   ├── model-configs/
+│   │   │   ├── route.ts         # GET/POST 代理 → 后端 /v1/model-configs
+│   │   │   └── [id]/
+│   │   │       ├── route.ts     # GET/PUT/DELETE 代理 → 后端 /v1/model-configs/:id
+│   │   │       └── activate/
+│   │   │           └── route.ts # POST 代理 → 后端 /v1/model-configs/:id/activate
+│   │   └── providers/route.ts   # GET 代理 → 后端 /v1/providers
+│   ├── login/
+│   │   └── page.tsx             # 登录页
+│   ├── agent/
+│   │   └── page.tsx             # Agent 工作台
+│   └── settings/
+│       ├── layout.tsx           # 设置页面布局（侧边导航）
+│       ├── page.tsx             # 设置首页（重定向到 models）
+│       └── models/
+│           └── page.tsx         # 模型配置管理页
 ├── components/
+│   ├── agent-page-shell.tsx     # Agent 页面外壳（认证守卫 + 顶栏）
+│   ├── agent-workspace-wrapper.tsx # AgentWorkspace 客户端包装
 │   ├── async-resource.tsx       # 通用异步资源渲染组件
-│   └── health-status-panel.tsx  # 健康状态面板
+│   ├── auth-storage.ts          # 认证存储工具（localStorage）
+│   ├── health-status-panel.tsx  # 健康状态面板
+│   └── login-form.tsx           # 登录表单组件
 ├── lib/
 │   └── use-async-resource.ts    # 自定义异步数据 hook
 ├── test/
@@ -47,11 +67,28 @@ frontend/web/
 
 当前路由结构非常扁平：
 
+**页面路由：**
+
 | 路由 | 文件 | 类型 |
 |------|------|------|
-| `/` | `app/page.tsx` | 页面（Client Component） |
-| `/api/health` | `app/api/health/route.ts` | API Route Handler (GET) |
-| `/api/agent-run` | `app/api/agent-run/route.ts` | API Route Handler (POST) |
+| `/` | `app/page.tsx` | 首页重定向 |
+| `/login` | `app/login/page.tsx` | 登录页（Client Component） |
+| `/agent` | `app/agent/page.tsx` | Agent 工作台（Client Component） |
+| `/settings` | `app/settings/page.tsx` | 设置首页（重定向到 models） |
+| `/settings/models` | `app/settings/models/page.tsx` | 模型配置管理（Client Component） |
+
+**API 路由（BFF 代理层）：**
+
+| 路由 | 文件 | 方法 | 代理目标 |
+|------|------|------|---------|
+| `/api/health` | `app/api/health/route.ts` | GET | 后端 `/health` |
+| `/api/agent-run` | `app/api/agent-run/route.ts` | POST | 后端 `/v1/agents/runs` |
+| `/api/threads` | `app/api/threads/route.ts` | GET | 后端 `/v1/threads` |
+| `/api/auth/login` | `app/api/auth/login/route.ts` | POST | 后端 `/v1/auth/token` |
+| `/api/model-configs` | `app/api/model-configs/route.ts` | GET/POST | 后端 `/v1/model-configs` |
+| `/api/model-configs/:id` | `app/api/model-configs/[id]/route.ts` | GET/PUT/DELETE | 后端 `/v1/model-configs/:id` |
+| `/api/model-configs/:id/activate` | `app/api/model-configs/[id]/activate/route.ts` | POST | 后端 `/v1/model-configs/:id/activate` |
+| `/api/providers` | `app/api/providers/route.ts` | GET | 后端 `/v1/providers` |
 
 **未使用的 App Router 特性：**
 - 无 `loading.tsx`（加载态由自研组件处理）
@@ -89,7 +126,7 @@ frontend/web/
                ▼
 ┌──────────────────────────────────────────────────────┐
 │  Next.js API Route（BFF 代理层）                      │
-│  /api/health, /api/agent-run                         │
+│  /api/health, /api/agent-run, /api/model-configs     │
 │                                                      │
 │  接收前端请求 → 转发到后端服务 → 返回 JSON             │
 └──────────────┬──────────────────────────────────────┘
@@ -160,6 +197,42 @@ export async function GET() {
 - 解决跨域问题（浏览器只与同源的 `/api/*` 通信）
 - 集中管理认证和请求头
 - 后端地址通过环境变量 `NEXT_PUBLIC_AGENT_API_BASE_URL` 配置
+
+### 模型配置数据流
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  /settings/models 页面                                    │
+│  - 创建/编辑/删除模型配置                                  │
+│  - 激活指定配置                                           │
+└──────────────┬──────────────────────────────────────────┘
+               │ fetch
+               ▼
+┌─────────────────────────────────────────────────────────┐
+│  /api/model-configs (BFF 代理)                            │
+│  转发到后端 /v1/model-configs                             │
+└──────────────┬──────────────────────────────────────────┘
+               │ fetch
+               ▼
+┌─────────────────────────────────────────────────────────┐
+│  后端 ModelConfigService                                  │
+│  - CRUD 操作存储到 PostgreSQL                              │
+│  - activate 切换当前激活配置                               │
+└─────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────┐
+│  /agent 页面（对话时）                                     │
+│  - 顶栏显示模型选择器                                      │
+│  - 发送消息时附带 provider/model                           │
+└──────────────┬──────────────────────────────────────────┘
+               │ fetch
+               ▼
+┌─────────────────────────────────────────────────────────┐
+│  /api/agent-run → 后端 /v1/agents/runs                   │
+│  Agent Runtime 读取激活的模型配置                          │
+│  使用对应 provider 的 apiKey/baseUrl 创建 LLM 实例         │
+└─────────────────────────────────────────────────────────┘
+```
 
 ---
 

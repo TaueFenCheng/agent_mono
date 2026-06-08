@@ -55,6 +55,7 @@ export interface AgentInvokeInput {
   runId?: string;
   messages?: BaseMessageLike[];
   toolAllowlist?: string[];
+  providerConfigs?: Record<string, ProviderRuntimeConfig>;
 }
 
 export interface AgentInvokeOutput {

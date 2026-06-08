@@ -25,6 +25,26 @@ export interface AgentRuntime {
   close(): Promise<void>;
 }
 
+export interface ActiveModelConfig {
+  provider: string;
+  model: string;
+  apiKey: string;
+  baseUrl: string;
+}
+
+export async function getActiveModelConfig(prisma: PrismaClient): Promise<ActiveModelConfig | null> {
+  const config = await prisma.modelConfig.findFirst({
+    where: { isActive: true }
+  });
+  if (!config) return null;
+  return {
+    provider: config.provider,
+    model: config.model,
+    apiKey: config.apiKey,
+    baseUrl: config.baseUrl
+  };
+}
+
 async function createCore(prisma: PrismaClient): Promise<AgentRuntime> {
   const memoryStore = new PrismaMemoryStore(prisma);
   await memoryStore.setup();
@@ -124,14 +144,37 @@ export async function invokeAgent(input: {
   prisma: PrismaClient;
 }) {
   const runtime = await getAgentRuntime(input.prisma);
+
+  // 如果请求未指定 provider/model，尝试从数据库获取激活的配置
+  let provider = input.provider;
+  let model = input.model;
+  let providerConfigs: Record<string, { apiKey?: string; baseUrl?: string; model?: string }> | undefined;
+
+  if (!provider && !model) {
+    const activeConfig = await getActiveModelConfig(input.prisma);
+    if (activeConfig) {
+      provider = activeConfig.provider;
+      model = activeConfig.model;
+      // 将激活配置的 apiKey 和 baseUrl 注入到 providerConfigs
+      providerConfigs = {
+        [activeConfig.provider]: {
+          apiKey: activeConfig.apiKey,
+          baseUrl: activeConfig.baseUrl,
+          model: activeConfig.model
+        }
+      };
+    }
+  }
+
   return runtime.core.invoke({
     prompt: input.prompt,
     threadId: input.threadId,
-    provider: input.provider,
-    model: input.model,
+    provider,
+    model,
     metadata: input.metadata,
     enabledSkills: input.enabledSkills,
-    runId: input.runId
+    runId: input.runId,
+    providerConfigs
   });
 }
 
@@ -146,14 +189,36 @@ export async function* invokeAgentStream(input: {
   prisma: PrismaClient;
 }): AsyncGenerator<AgentRunEvent> {
   const runtime = await getAgentRuntime(input.prisma);
+
+  // 如果请求未指定 provider/model，尝试从数据库获取激活的配置
+  let provider = input.provider;
+  let model = input.model;
+  let providerConfigs: Record<string, { apiKey?: string; baseUrl?: string; model?: string }> | undefined;
+
+  if (!provider && !model) {
+    const activeConfig = await getActiveModelConfig(input.prisma);
+    if (activeConfig) {
+      provider = activeConfig.provider;
+      model = activeConfig.model;
+      providerConfigs = {
+        [activeConfig.provider]: {
+          apiKey: activeConfig.apiKey,
+          baseUrl: activeConfig.baseUrl,
+          model: activeConfig.model
+        }
+      };
+    }
+  }
+
   for await (const event of runtime.core.invokeStream({
     prompt: input.prompt,
     threadId: input.threadId,
-    provider: input.provider,
-    model: input.model,
+    provider,
+    model,
     metadata: input.metadata,
     enabledSkills: input.enabledSkills,
-    runId: input.runId
+    runId: input.runId,
+    providerConfigs
   })) {
     yield event;
   }

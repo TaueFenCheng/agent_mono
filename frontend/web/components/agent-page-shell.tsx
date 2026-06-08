@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
 import { Button } from "@tang-agent/ui";
 import { AgentWorkspaceWrapper } from "@/components/agent-workspace-wrapper";
 import { clearAuthSession, getStoredAccessToken, getStoredUser, type StoredUser } from "@/components/auth-storage";
@@ -45,10 +45,21 @@ export function AgentPageShell() {
           <div className="text-sm font-medium">tangAgent</div>
           <div className="text-xs text-foreground/55">{user?.name ?? user?.sub ?? "Web Console"}</div>
         </div>
-        <Button className="gap-2" size="sm" variant="outline" onClick={handleLogout}>
-          <LogOut className="h-4 w-4" aria-hidden="true" />
-          退出
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            className="gap-2"
+            size="sm"
+            variant="outline"
+            onClick={() => router.push("/settings")}
+          >
+            <Settings className="h-4 w-4" aria-hidden="true" />
+            设置
+          </Button>
+          <Button className="gap-2" size="sm" variant="outline" onClick={handleLogout}>
+            <LogOut className="h-4 w-4" aria-hidden="true" />
+            退出
+          </Button>
+        </div>
       </header>
       <div className="p-4">
         <AgentWorkspaceWrapper accessToken={accessToken} onUnauthorized={handleLogout} />

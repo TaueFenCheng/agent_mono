@@ -25,7 +25,7 @@ function isAgentRunResponseEnvelope(value: unknown): value is SuccessfulAgentRun
 }
 
 export async function POST(req: Request) {
-  const payload = (await req.json()) as { message: string; threadId?: string };
+  const payload = (await req.json()) as { message: string; threadId?: string; provider?: string; model?: string };
   const baseUrl = getBackendBaseUrl();
   const accessToken = getBearerTokenFromRequest(req);
 
@@ -50,7 +50,9 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         threadId: payload.threadId || `web-${Date.now()}`,
-        messages: [{ role: "user", content: payload.message, createdAt: new Date().toISOString() }]
+        messages: [{ role: "user", content: payload.message, createdAt: new Date().toISOString() }],
+        ...(payload.provider && { provider: payload.provider }),
+        ...(payload.model && { model: payload.model })
       })
     });
   } catch (error) {

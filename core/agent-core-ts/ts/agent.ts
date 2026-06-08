@@ -57,7 +57,7 @@ export class AgentCore {
       provider: input.provider ?? this.options.defaultProvider,
       model: input.model ?? this.options.defaultModel,
       env: this.options.env,
-      providerConfigs: this.options.providerConfigs
+      providerConfigs: { ...this.options.providerConfigs, ...input.providerConfigs }
     });
 
     const tools = await this.registry.buildTools({
@@ -160,7 +160,7 @@ export class AgentCore {
           provider: input.provider ?? this.options.defaultProvider,
           model: input.model ?? this.options.defaultModel,
           env: this.options.env,
-          providerConfigs: this.options.providerConfigs
+          providerConfigs: { ...this.options.providerConfigs, ...input.providerConfigs }
         });
 
         stream.push({
