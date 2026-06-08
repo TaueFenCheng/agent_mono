@@ -57,6 +57,27 @@ function createSession(seed?: string): ChatSession {
   };
 }
 
+function AssistantLoadingMessage() {
+  return (
+    <div className="flex justify-start" aria-live="polite" aria-label="助手正在回复">
+      <div className="max-w-[85%] space-y-2 rounded-lg bg-foreground/10 px-3 py-2 text-sm text-foreground">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-foreground/45" />
+          <span className="text-foreground/70">正在思考</span>
+          <span className="flex items-center gap-1" aria-hidden="true">
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-foreground/45 [animation-delay:-0.2s]" />
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-foreground/45 [animation-delay:-0.1s]" />
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-foreground/45" />
+          </span>
+        </div>
+        <div className="h-1 overflow-hidden rounded-full bg-foreground/10">
+          <div className="h-full w-1/2 animate-pulse rounded-full bg-foreground/35" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function upsertSession(list: ChatSession[], target: ChatSession): ChatSession[] {
   const next = [target, ...list.filter((item) => item.id !== target.id)];
   return next.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -75,13 +96,17 @@ export function AgentWorkspace({
   const [input, setInput] = React.useState(initialPrompt);
   const [composerAttachments, setComposerAttachments] = React.useState<Array<{ id: string; file: File; data: AttachmentData }>>([]);
   const [loading, setLoading] = React.useState(false);
+  const [pendingSessionId, setPendingSessionId] = React.useState("");
   const [error, setError] = React.useState("");
   const [theme, setTheme] = React.useState<"dark" | "light">("dark");
   const [previewAttachment, setPreviewAttachment] = React.useState<AttachmentData | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const composerAttachmentsRef = React.useRef<Array<{ id: string; file: File; data: AttachmentData }>>([]);
+  const messagesEndRef = React.useRef<HTMLDivElement | null>(null);
 
   const activeSession = sessions.find((item) => item.id === activeSessionId) ?? null;
+  const activeMessageCount = activeSession?.messages.length ?? 0;
+  const isActiveSessionPending = loading && pendingSessionId === activeSessionId;
 
   React.useEffect(() => {
     composerAttachmentsRef.current = composerAttachments;
@@ -111,6 +136,10 @@ export function AgentWorkspace({
       }
     };
   }, []);
+
+  React.useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+  }, [activeSessionId, activeMessageCount, loading]);
 
   const ensureSession = React.useCallback(
     (seed?: string): ChatSession => {
@@ -149,6 +178,7 @@ export function AgentWorkspace({
 
     const pendingSession = appendMessage(session, userMessage);
     setSessions((prev) => upsertSession(prev, pendingSession));
+    setPendingSessionId(pendingSession.id);
     setInput("");
 
     try {
@@ -174,8 +204,9 @@ export function AgentWorkspace({
       setActiveSessionId(pendingSession.id);
     } finally {
       setLoading(false);
+      setPendingSessionId("");
     }
-  }, [activeSessionId, appendMessage, ensureSession, input, loading, onSend]);
+  }, [appendMessage, ensureSession, input, loading, onSend]);
 
   const removeSession = React.useCallback((sessionId: string) => {
     setSessions((prev) => {
@@ -299,6 +330,8 @@ export function AgentWorkspace({
                   </div>
                 </div>
               ))}
+              {isActiveSessionPending ? <AssistantLoadingMessage /> : null}
+              <div ref={messagesEndRef} />
             </div>
 
             <div className="space-y-2">
@@ -336,6 +369,7 @@ export function AgentWorkspace({
                       variant="inline"
                       onOpenPreview={() => setPreviewAttachment(item.data)}
                       onRemove={() => {
+                        if (loading) return;
                         URL.revokeObjectURL(item.data.url);
                         setComposerAttachments((prev) => prev.filter((entry) => entry.id !== item.id));
                       }}
@@ -351,6 +385,7 @@ export function AgentWorkspace({
               <Textarea
                 placeholder={placeholder}
                 value={input}
+                disabled={loading}
                 onChange={(event) => setInput(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && !event.shiftKey) {
@@ -360,13 +395,19 @@ export function AgentWorkspace({
                 }}
               />
               <div className="flex items-center justify-between gap-2">
-                {error ? <p className="text-xs text-red-600 dark:text-red-400">{error}</p> : <span />}
+                {error ? (
+                  <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+                ) : isActiveSessionPending ? (
+                  <p className="text-xs text-foreground/55">请求处理中，请稍候</p>
+                ) : (
+                  <span />
+                )}
                 <div className="flex items-center gap-2">
                   <Button variant="outline" type="button" onClick={() => fileInputRef.current?.click()} disabled={loading}>
                     添加附件
                   </Button>
                   <Button onClick={() => void runSend()} disabled={loading || !input.trim()}>
-                    {loading ? "发送中..." : "发送"}
+                    {loading ? "等待回复" : "发送"}
                   </Button>
                 </div>
               </div>
