@@ -90,7 +90,11 @@ function parseSkillMarkdown(skillPath: string): Skill | null {
   if (raw.startsWith("---")) {
     const parts = raw.split("---", 3);
     if (parts.length === 3) {
-      metadata = (parseYaml(parts[1]?.trim() ?? "") as Record<string, unknown> | null) ?? {};
+      try {
+        metadata = (parseYaml(parts[1]?.trim() ?? "") as Record<string, unknown> | null) ?? {};
+      } catch {
+        return null;
+      }
       body = parts[2] ?? "";
     }
   }

@@ -14,12 +14,12 @@ import { toDisplayString } from "./utils/value-utils.js";
 
 function createBuiltinTools(options: BuildToolOptions, context: ToolInvocationContext): StructuredToolInterface[] {
   return [
-    tool(async () => ({ now: new Date().toISOString() }), {
+    tool(async () => toDisplayString({ now: new Date().toISOString() }), {
       name: "get_time",
       description: "Get current ISO datetime in UTC.",
       schema: z.object({})
     }),
-    tool(async (input: { text: string }) => ({ echoed: input.text }), {
+    tool(async (input: { text: string }) => toDisplayString({ echoed: input.text }), {
       name: "echo_text",
       description: "Echo input text for testing tool-calling behavior.",
       schema: z.object({ text: z.string().describe("Text to echo") })
@@ -29,14 +29,14 @@ function createBuiltinTools(options: BuildToolOptions, context: ToolInvocationCo
       if (!safe) throw new Error("Expression contains unsupported characters");
       const result = Function(`"use strict"; return (${input.expression});`)();
       if (typeof result !== "number" || Number.isNaN(result)) throw new Error("Invalid expression result");
-      return { result };
+      return toDisplayString({ result });
     }, {
       name: "calculate",
       description: "Calculate a simple arithmetic expression using + - * / and parentheses.",
       schema: z.object({ expression: z.string().describe("Expression, e.g. (12+3)*4") })
     }),
     tool(async (input: { content: string; category?: string; confidence?: number }) => {
-      if (!options.memoryStore) return { message: "Memory store is not configured." };
+      if (!options.memoryStore) return "Memory store is not configured.";
       if (!context.threadId) throw new Error("threadId is required for memory operations");
       const fact = await options.memoryStore.createFact(context.threadId, {
         content: input.content,
@@ -44,13 +44,13 @@ function createBuiltinTools(options: BuildToolOptions, context: ToolInvocationCo
         confidence: input.confidence,
         metadata: context.metadata
       });
-      return {
+      return toDisplayString({
         id: fact.id,
         thread_id: fact.threadId,
         content: fact.content,
         category: fact.category,
         confidence: fact.confidence
-      };
+      });
     }, {
       name: "remember_fact",
       description: "Persist a fact into thread memory for later turns.",
@@ -61,27 +61,27 @@ function createBuiltinTools(options: BuildToolOptions, context: ToolInvocationCo
       })
     }),
     tool(async () => {
-      if (!options.memoryStore) return { message: "Memory store is not configured." };
+      if (!options.memoryStore) return "Memory store is not configured.";
       if (!context.threadId) throw new Error("threadId is required for memory operations");
       const facts = await options.memoryStore.listFacts(context.threadId, { limit: 20 });
-      return facts.map((fact) => ({
+      return toDisplayString(facts.map((fact) => ({
         id: fact.id,
         thread_id: fact.threadId,
         content: fact.content,
         category: fact.category,
         confidence: fact.confidence
-      }));
+      })));
     }, {
       name: "list_memory",
       description: "List saved memory facts for the current thread.",
       schema: z.object({})
     }),
     tool(async () => {
-      if (!options.skillRegistry) return { message: "Skill registry is not configured." };
-      return options.skillRegistry.listSkills({
+      if (!options.skillRegistry) return "Skill registry is not configured.";
+      return toDisplayString(options.skillRegistry.listSkills({
         enabledOnly: Boolean(options.enabledSkills?.length),
         enabledNames: options.enabledSkills
-      });
+      }));
     }, {
       name: "list_skills",
       description: "List the available skills and their summaries.",

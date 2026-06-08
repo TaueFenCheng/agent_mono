@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
