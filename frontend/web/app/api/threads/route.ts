@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getBackendAccessToken, getBackendBaseUrl } from "../backend";
+import { getBackendBaseUrl, getBearerTokenFromRequest } from "../backend";
 
 type MessageRole = "user" | "assistant" | "tool" | "system";
 
@@ -65,11 +65,22 @@ async function fetchJson<T>(url: string, accessToken: string) {
   return result.data;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const baseUrl = getBackendBaseUrl();
+  const accessToken = getBearerTokenFromRequest(req);
+
+  if (!accessToken) {
+    return NextResponse.json(
+      {
+        code: 401,
+        message: "Missing bearer token",
+        data: null
+      },
+      { status: 401 }
+    );
+  }
 
   try {
-    const accessToken = await getBackendAccessToken(baseUrl);
     const threadList = await fetchJson<{ thread_list: BackendThreadSummary[] }>(
       `${baseUrl}/v1/threads?limit=30`,
       accessToken

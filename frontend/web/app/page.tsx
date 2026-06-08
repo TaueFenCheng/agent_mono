@@ -1,16 +1,15 @@
-import { HealthStatusPanelSSR } from "@/components/health-status-panel-ssr";
-import { AgentWorkspaceWrapper } from "@/components/agent-workspace-wrapper";
+"use client";
 
-/**
- * 首页 - Server Component
- * - HealthStatusPanelSSR: 服务端渲染，首屏即包含数据
- * - AgentWorkspaceWrapper: 客户端组件，处理用户交互
- */
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { getStoredAccessToken } from "@/components/auth-storage";
+
 export default function HomePage() {
-  return (
-    <div className="space-y-4 p-4">
-      <HealthStatusPanelSSR />
-      <AgentWorkspaceWrapper />
-    </div>
-  );
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace(getStoredAccessToken() ? "/agent" : "/login");
+  }, [router]);
+
+  return <main className="min-h-screen bg-background" />;
 }

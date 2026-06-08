@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getBackendAccessToken, getBackendBaseUrl } from "../backend";
+import { getBackendBaseUrl, getBearerTokenFromRequest } from "../backend";
 
 interface AgentRunResponseEnvelope {
   code: number | string;
@@ -27,18 +27,16 @@ function isAgentRunResponseEnvelope(value: unknown): value is SuccessfulAgentRun
 export async function POST(req: Request) {
   const payload = (await req.json()) as { message: string; threadId?: string };
   const baseUrl = getBackendBaseUrl();
+  const accessToken = getBearerTokenFromRequest(req);
 
-  let accessToken = "";
-  try {
-    accessToken = await getBackendAccessToken(baseUrl);
-  } catch (error) {
+  if (!accessToken) {
     return NextResponse.json(
       {
-        code: 502,
-        message: error instanceof Error ? error.message : "backend auth request failed",
+        code: 401,
+        message: "Missing bearer token",
         data: null
       },
-      { status: 502 }
+      { status: 401 }
     );
   }
 
