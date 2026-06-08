@@ -9,7 +9,7 @@ import { cn } from "../lib/utils";
 
 type MessageRole = "user" | "assistant";
 
-interface ChatMessage {
+export interface AgentWorkspaceMessage {
   id: string;
   role: MessageRole;
   content: string;
@@ -17,11 +17,11 @@ interface ChatMessage {
   attachments?: AttachmentData[];
 }
 
-interface ChatSession {
+export interface AgentWorkspaceSession {
   id: string;
   title: string;
   updatedAt: string;
-  messages: ChatMessage[];
+  messages: AgentWorkspaceMessage[];
 }
 
 export interface AgentWorkspaceSendInput {
@@ -36,7 +36,9 @@ export interface AgentWorkspaceProps {
   description?: string;
   placeholder?: string;
   initialPrompt?: string;
+  initialSessions?: AgentWorkspaceSession[];
   enableThemeToggle?: boolean;
+  loadSessions?: () => Promise<AgentWorkspaceSession[]>;
   onSend: (input: AgentWorkspaceSendInput) => Promise<string>;
 }
 
@@ -48,7 +50,7 @@ function newId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function createSession(seed?: string): ChatSession {
+function createSession(seed?: string): AgentWorkspaceSession {
   return {
     id: newId("thread"),
     title: (seed && seed.trim().slice(0, 24)) || "新会话",
@@ -78,7 +80,7 @@ function AssistantLoadingMessage() {
   );
 }
 
-function upsertSession(list: ChatSession[], target: ChatSession): ChatSession[] {
+function upsertSession(list: AgentWorkspaceSession[], target: AgentWorkspaceSession): AgentWorkspaceSession[] {
   const next = [target, ...list.filter((item) => item.id !== target.id)];
   return next.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
@@ -88,15 +90,19 @@ export function AgentWorkspace({
   description = "左侧会话历史，右侧对话面板",
   placeholder = "输入你的任务，按 Enter 发送（Shift+Enter 换行）",
   initialPrompt = "你是什么模型？你能做什么？",
+  initialSessions = [],
   enableThemeToggle = true,
+  loadSessions,
   onSend
 }: AgentWorkspaceProps) {
-  const [sessions, setSessions] = React.useState<ChatSession[]>([]);
-  const [activeSessionId, setActiveSessionId] = React.useState<string>("");
+  const [sessions, setSessions] = React.useState<AgentWorkspaceSession[]>(initialSessions);
+  const [activeSessionId, setActiveSessionId] = React.useState<string>(initialSessions[0]?.id ?? "");
   const [input, setInput] = React.useState(initialPrompt);
   const [composerAttachments, setComposerAttachments] = React.useState<Array<{ id: string; file: File; data: AttachmentData }>>([]);
   const [loading, setLoading] = React.useState(false);
   const [pendingSessionId, setPendingSessionId] = React.useState("");
+  const [historyLoading, setHistoryLoading] = React.useState(Boolean(loadSessions));
+  const [historyError, setHistoryError] = React.useState("");
   const [error, setError] = React.useState("");
   const [theme, setTheme] = React.useState<"dark" | "light">("dark");
   const [previewAttachment, setPreviewAttachment] = React.useState<AttachmentData | null>(null);
@@ -118,6 +124,31 @@ export function AgentWorkspace({
     const next = saved === "light" ? "light" : "dark";
     setTheme(next);
   }, []);
+
+  React.useEffect(() => {
+    if (!loadSessions) return;
+    let cancelled = false;
+
+    setHistoryLoading(true);
+    setHistoryError("");
+    void loadSessions()
+      .then((loadedSessions) => {
+        if (cancelled) return;
+        setSessions(loadedSessions);
+        setActiveSessionId((current) => current || loadedSessions[0]?.id || "");
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setHistoryError(err instanceof Error ? err.message : "历史会话加载失败");
+      })
+      .finally(() => {
+        if (!cancelled) setHistoryLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadSessions]);
 
   React.useEffect(() => {
     if (typeof document === "undefined") return;
@@ -142,7 +173,7 @@ export function AgentWorkspace({
   }, [activeSessionId, activeMessageCount, loading]);
 
   const ensureSession = React.useCallback(
-    (seed?: string): ChatSession => {
+    (seed?: string): AgentWorkspaceSession => {
       if (activeSession) return activeSession;
       const created = createSession(seed);
       setSessions((prev) => upsertSession(prev, created));
@@ -152,7 +183,7 @@ export function AgentWorkspace({
     [activeSession]
   );
 
-  const appendMessage = React.useCallback((session: ChatSession, message: ChatMessage): ChatSession => {
+  const appendMessage = React.useCallback((session: AgentWorkspaceSession, message: AgentWorkspaceMessage): AgentWorkspaceSession => {
     return {
       ...session,
       title: session.messages.length === 0 && message.role === "user" ? message.content.slice(0, 24) : session.title,
@@ -168,7 +199,7 @@ export function AgentWorkspace({
     setLoading(true);
 
     const session = ensureSession(message);
-    const userMessage: ChatMessage = {
+    const userMessage: AgentWorkspaceMessage = {
       id: newId("user"),
       role: "user",
       content: message,
@@ -188,7 +219,7 @@ export function AgentWorkspace({
         attachments: composerAttachments.map((item) => item.data),
         files: composerAttachments.map((item) => item.file)
       });
-      const assistantMessage: ChatMessage = {
+      const assistantMessage: AgentWorkspaceMessage = {
         id: newId("assistant"),
         role: "assistant",
         content: output,
@@ -237,10 +268,16 @@ export function AgentWorkspace({
             </Button>
             <div className="space-y-2 overflow-x-hidden overflow-y-auto pr-1">
               {sessions.length === 0 ? (
-                <p className="rounded-md border border-dashed border-border/50 p-3 text-xs text-foreground/60">还没有历史会话</p>
+                <p className="rounded-md border border-dashed border-border/50 p-3 text-xs text-foreground/60">
+                  {historyLoading ? "正在加载历史会话" : "还没有历史会话"}
+                </p>
+              ) : null}
+              {historyError ? (
+                <p className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-600 dark:text-red-300">
+                  {historyError}
+                </p>
               ) : null}
               {sessions.map((session) => {
-                const latest = session.messages[session.messages.length - 1];
                 return (
                   <div
                     key={session.id}
@@ -257,9 +294,6 @@ export function AgentWorkspace({
                       type="button"
                     >
                       <p className="truncate text-sm font-medium">{session.title || "未命名会话"}</p>
-                      <p className="mt-1 max-h-9 overflow-hidden text-xs text-foreground/55">
-                        {latest?.content ?? "暂无消息"}
-                      </p>
                     </button>
                     <button
                       type="button"

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getBackendAccessToken, getBackendBaseUrl } from "../backend";
 
 interface AgentRunResponseEnvelope {
   code: number | string;
@@ -25,32 +26,11 @@ function isAgentRunResponseEnvelope(value: unknown): value is SuccessfulAgentRun
 
 export async function POST(req: Request) {
   const payload = (await req.json()) as { message: string; threadId?: string };
-  const baseUrl = process.env.NEXT_PUBLIC_AGENT_API_BASE_URL ?? "http://127.0.0.1:8080";
+  const baseUrl = getBackendBaseUrl();
 
   let accessToken = "";
   try {
-    const tokenResponse = await fetch(`${baseUrl}/v1/auth/token`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        sub: "web-console",
-        name: "Web Console",
-        roles: ["user"]
-      })
-    });
-
-    const tokenResult = (await tokenResponse.json()) as { data?: { accessToken?: unknown } };
-    if (!tokenResponse.ok || typeof tokenResult.data?.accessToken !== "string") {
-      return NextResponse.json(
-        {
-          code: tokenResponse.status || 502,
-          message: "failed to create backend access token",
-          data: tokenResult
-        },
-        { status: tokenResponse.status || 502 }
-      );
-    }
-    accessToken = tokenResult.data.accessToken;
+    accessToken = await getBackendAccessToken(baseUrl);
   } catch (error) {
     return NextResponse.json(
       {

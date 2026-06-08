@@ -12,6 +12,12 @@ export function AgentWorkspaceWrapper() {
     <AgentWorkspace
       title="tangAgent Web Console"
       description="左侧会话区历史记录，右侧对话沟通面板"
+      loadSessions={async () => {
+        const response = await fetch("/api/threads", { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = (await response.json()) as { sessions: Parameters<typeof AgentWorkspace>[0]["initialSessions"] };
+        return data.sessions ?? [];
+      }}
       onSend={async ({ sessionId, message }) => {
         const response = await fetch("/api/agent-run", {
           method: "POST",
