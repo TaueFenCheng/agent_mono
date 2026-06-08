@@ -66,7 +66,7 @@ export function AgentWorkspace({
   title = "tangAgent Console",
   description = "左侧会话历史，右侧对话面板",
   placeholder = "输入你的任务，按 Enter 发送（Shift+Enter 换行）",
-  initialPrompt = "帮我设计一个可扩展的多模型 agent 架构",
+  initialPrompt = "你是什么模型？你能做什么？",
   enableThemeToggle = true,
   onSend
 }: AgentWorkspaceProps) {
