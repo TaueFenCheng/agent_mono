@@ -9,7 +9,7 @@ LlamaIndex 有两个主要版本：
 - **TypeScript**：`llamaindex`（npm），仓库在 `run-llama/llama_index` 的 `llama-index-ts` 目录
 - **Python**：`llama-index`（pip），仓库在 `run-llama/llama_index` 根目录
 
-Python 是主力版本，TS 版本在持续追赶中，核心 RAG 能力已对齐。
+Python 是主力版本，TS 版本在持续追赶中，核心 RAG 能力已对齐
 
 ---
 
