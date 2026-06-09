@@ -1,6 +1,6 @@
-# tang-agent-core-python
+# intelligent-agent-core-python
 
-tangAgent 的共享 Python Agent Core 包。
+intelligentAgent 的共享 Python Agent Core 包。
 
 English docs: `README.md`
 

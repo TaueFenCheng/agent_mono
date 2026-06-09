@@ -98,7 +98,7 @@ function upsertSession(list: AgentWorkspaceSession[], target: AgentWorkspaceSess
 }
 
 export function AgentWorkspace({
-  title = "tangAgent Console",
+  title = "intelligentAgent Console",
   description = "左侧会话历史，右侧对话面板",
   placeholder = "输入你的任务，按 Enter 发送（Shift+Enter 换行）",
   initialPrompt = "你是什么模型？你能做什么？",
@@ -135,7 +135,7 @@ export function AgentWorkspace({
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
-    const saved = window.localStorage.getItem("tang-agent-theme");
+    const saved = window.localStorage.getItem("intelligent-agent-theme");
     const next = saved === "light" ? "light" : "dark";
     setTheme(next);
   }, []);
@@ -171,7 +171,7 @@ export function AgentWorkspace({
     root.classList.remove("light", "dark");
     root.classList.add(theme);
     if (typeof window !== "undefined") {
-      window.localStorage.setItem("tang-agent-theme", theme);
+      window.localStorage.setItem("intelligent-agent-theme", theme);
     }
   }, [theme]);
 

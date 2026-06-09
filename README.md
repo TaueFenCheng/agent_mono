@@ -1,4 +1,4 @@
-# tangAgent
+# intelligentAgent
 
 Monorepo with frontend/backend separation.
 

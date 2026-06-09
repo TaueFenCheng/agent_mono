@@ -1,4 +1,4 @@
-# @tang-agent/agent-core
+# @intelligent-agent/agent-core
 
 Core agent capability layer extracted from backend runtime concerns.
 

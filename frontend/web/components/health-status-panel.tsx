@@ -1,7 +1,7 @@
 "use client";
 
 import { AsyncResource } from "@/components/async-resource";
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@tang-agent/ui";
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@intelligent-agent/ui";
 
 export interface HealthStatusResponse {
   status: "ok";

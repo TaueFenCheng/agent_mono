@@ -1,5 +1,5 @@
 {
-  "name": "@tang-agent/sdk-ts",
+  "name": "@intelligent-agent/sdk-ts",
   "version": "0.2.0",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
     "lint": "echo 'sdk-ts lint skipped'"
   },
   "dependencies": {
-    "@tang-agent/core-types": "workspace:*"
+    "@intelligent-agent/core-types": "workspace:*"
   },
   "devDependencies": {
     "vitest": "^2.1.8"

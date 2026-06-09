@@ -1,6 +1,6 @@
-# tang-agent-core-python
+# intelligent-agent-core-python
 
-Shared Python agent core for tangAgent.
+Shared Python agent core for intelligentAgent.
 
 中文文档: `README.zh-CN.md`
 

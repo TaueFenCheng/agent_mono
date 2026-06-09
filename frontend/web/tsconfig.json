@@ -16,10 +16,10 @@
       "@/*": [
         "./*"
       ],
-      "@tang-agent/ui": [
+      "@intelligent-agent/ui": [
         "../../packages/ui/src/index.ts"
       ],
-      "@tang-agent/ui/*": [
+      "@intelligent-agent/ui/*": [
         "../../packages/ui/src/*"
       ]
     },

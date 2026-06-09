@@ -1,6 +1,6 @@
 "use client";
 
-import { AgentWorkspace, type ModelOption } from "@tang-agent/ui";
+import { AgentWorkspace, type ModelOption } from "@intelligent-agent/ui";
 import { useEffect, useState } from "react";
 
 interface ModelConfig {
@@ -72,7 +72,7 @@ export function AgentWorkspaceWrapper({ accessToken, onUnauthorized }: AgentWork
 
   return (
     <AgentWorkspace
-      title="tangAgent Web Console"
+      title="intelligentAgent Web Console"
       description="左侧会话区历史记录，右侧对话沟通面板"
       modelOptions={modelOptions}
       selectedModelId={selectedModelId}

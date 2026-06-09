@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
-import { TangAgentClient } from "../src/index";
+import { IntelligentAgentClient } from "../src/index";
 
-describe("TangAgentClient", () => {
+describe("IntelligentAgentClient", () => {
   it("calls run endpoint", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -10,7 +10,7 @@ describe("TangAgentClient", () => {
 
     vi.stubGlobal("fetch", mockFetch as unknown as typeof fetch);
 
-    const client = new TangAgentClient({ baseUrl: "http://localhost:8080" });
+    const client = new IntelligentAgentClient({ baseUrl: "http://localhost:8080" });
     const result = await client.runAgent({
       sessionId: "s1",
       messages: [{ role: "user", content: "hello", createdAt: new Date().toISOString() }]

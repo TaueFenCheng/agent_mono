@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@tang-agent/ui";
+import { Button } from "@intelligent-agent/ui";
 import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
 import { getStoredAccessToken } from "@/components/auth-storage";
 

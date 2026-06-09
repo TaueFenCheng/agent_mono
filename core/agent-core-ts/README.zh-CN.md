@@ -1,4 +1,4 @@
-# @tang-agent/agent-core
+# @intelligent-agent/agent-core
 
 从后端运行时抽离出来的共享 Agent 核心能力层（TypeScript 版本）。
 

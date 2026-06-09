@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogIn } from "lucide-react";
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from "@tang-agent/ui";
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from "@intelligent-agent/ui";
 import { getStoredAccessToken, storeAuthSession } from "@/components/auth-storage";
 
 interface LoginResponse {
@@ -63,7 +63,7 @@ export function LoginForm() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle>登录 tangAgent</CardTitle>
+        <CardTitle>登录 intelligentAgent</CardTitle>
         <CardDescription>使用后端鉴权接口进入 Agent 工作台</CardDescription>
       </CardHeader>
       <CardContent>

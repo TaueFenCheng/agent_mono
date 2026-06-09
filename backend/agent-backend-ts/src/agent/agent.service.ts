@@ -13,7 +13,7 @@ import type {
   ThreadDetailResponse,
   ThreadListResponse,
   ThreadMemoryResponse
-} from "@tang-agent/core-types";
+} from "@intelligent-agent/core-types";
 import { DatabaseService } from "../infra/database.service.js";
 import { RedisService } from "../infra/redis.service.js";
 import { AgentQueueService } from "./agent-queue.service.js";

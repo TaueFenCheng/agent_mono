@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma, PrismaClient } from "@prisma/client";
-import type { MemoryFact, MemoryStore } from "@tang-agent/agent-core";
+import type { MemoryFact, MemoryStore } from "@intelligent-agent/agent-core";
 
 function nowIso(): string {
   return new Date().toISOString();

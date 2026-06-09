@@ -1,5 +1,5 @@
 {
-  "name": "@tang-agent/agent-backend-ts",
+  "name": "@intelligent-agent/agent-backend-ts",
   "version": "0.5.0",
   "private": true,
   "type": "module",
@@ -22,8 +22,8 @@
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/platform-express": "^10.4.15",
     "@prisma/client": "^6.8.2",
-    "@tang-agent/agent-core": "workspace:*",
-    "@tang-agent/core-types": "workspace:*",
+    "@intelligent-agent/agent-core": "workspace:*",
+    "@intelligent-agent/core-types": "workspace:*",
     "bullmq": "^5.41.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",

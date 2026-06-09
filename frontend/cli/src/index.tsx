@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { render, Box, Text, useApp } from "ink";
 import TextInput from "ink-text-input";
-import { TangAgentClient } from "@tang-agent/sdk-ts";
+import { IntelligentAgentClient } from "@intelligent-agent/sdk-ts";
 
 interface Args {
   url: string;
@@ -29,7 +29,7 @@ function App({ args }: { args: Args }) {
     try {
       setLoading(true);
       setError("");
-      const client = new TangAgentClient({ baseUrl: args.url });
+      const client = new IntelligentAgentClient({ baseUrl: args.url });
       const response = await client.runAgent({
         sessionId: `cli-${Date.now()}`,
         messages: [{ role: "user", content: message, createdAt: new Date().toISOString() }]
@@ -44,7 +44,7 @@ function App({ args }: { args: Args }) {
 
   return (
     <Box flexDirection="column" gap={1}>
-      <Text color="cyan">tangAgent CLI (Ink)</Text>
+      <Text color="cyan">intelligentAgent CLI (Ink)</Text>
       <Text dimColor>Backend: {args.url}</Text>
       <Box>
         <Text>{"> "}</Text>

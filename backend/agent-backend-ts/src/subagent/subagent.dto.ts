@@ -13,7 +13,7 @@ import {
   Min,
   ValidateNested
 } from "class-validator";
-import type { Provider } from "@tang-agent/core-types";
+import type { Provider } from "@intelligent-agent/core-types";
 
 const PROVIDER_VALUES: Provider[] = ["openai", "anthropic", "gemini", "qwen", "glm", "deepseek"];
 const SUBAGENT_ROLE_VALUES = ["planner", "researcher", "coder"] as const;

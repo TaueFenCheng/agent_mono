@@ -9,7 +9,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./", import.meta.url)),
-      "@tang-agent/ui": fileURLToPath(new URL("../../packages/ui/src/index.ts", import.meta.url))
+      "@intelligent-agent/ui": fileURLToPath(new URL("../../packages/ui/src/index.ts", import.meta.url))
     }
   },
   test: {

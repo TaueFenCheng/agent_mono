@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowLeft, Cpu } from "lucide-react";
-import { cn } from "@tang-agent/ui";
+import { cn } from "@intelligent-agent/ui";
 
 const navItems = [
   {

@@ -6,15 +6,15 @@ import type {
   InvokeMcpToolResponse,
   McpPluginListResponse,
   McpToolListResponse
-} from "@tang-agent/core-types";
+} from "@intelligent-agent/core-types";
 
-export interface TangAgentClientOptions {
+export interface IntelligentAgentClientOptions {
   baseUrl: string;
   apiKey?: string;
 }
 
-export class TangAgentClient {
-  constructor(private readonly options: TangAgentClientOptions) {}
+export class IntelligentAgentClient {
+  constructor(private readonly options: IntelligentAgentClientOptions) {}
 
   private headers() {
     return {

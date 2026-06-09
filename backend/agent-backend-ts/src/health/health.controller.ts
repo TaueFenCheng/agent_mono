@@ -1,5 +1,5 @@
 import { Controller, Get } from "@nestjs/common";
-import type { HealthResponse } from "@tang-agent/core-types";
+import type { HealthResponse } from "@intelligent-agent/core-types";
 import { AgentService } from "../agent/agent.service.js";
 import { DatabaseService } from "../infra/database.service.js";
 import { RedisService } from "../infra/redis.service.js";

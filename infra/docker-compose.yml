@@ -1,24 +1,24 @@
 services:
   postgres:
     image: postgres:16
-    container_name: tang-agent-postgres
+    container_name: intelligent-agent-postgres
     environment:
-      POSTGRES_USER: tang
-      POSTGRES_PASSWORD: tang
-      POSTGRES_DB: tang_agent
+      POSTGRES_USER: intelligent
+      POSTGRES_PASSWORD: intelligent
+      POSTGRES_DB: intelligent_agent
     ports:
       - "5432:5432"
     volumes:
-      - tang_agent_pg_data:/var/lib/postgresql/data
+      - intelligent_agent_pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tang -d tang_agent"]
+      test: ["CMD-SHELL", "pg_isready -U intelligent -d intelligent_agent"]
       interval: 5s
       timeout: 3s
       retries: 10
 
   redis:
     image: redis:7
-    container_name: tang-agent-redis
+    container_name: intelligent-agent-redis
     ports:
       - "6379:6379"
     healthcheck:
@@ -28,4 +28,4 @@ services:
       retries: 10
 
 volumes:
-  tang_agent_pg_data:
+  intelligent_agent_pg_data:

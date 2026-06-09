@@ -1,6 +1,6 @@
 # MemoryStore vs Checkpointer vs Prisma vs PostgreSQL
 
-本文档说明 `tangAgent` 当前 TS 后端里这四者各自负责什么，边界在哪里，为什么会同时出现。
+本文档说明 `intelligentAgent` 当前 TS 后端里这四者各自负责什么，边界在哪里，为什么会同时出现。
 
 ## 1. 一句话区分
 
@@ -58,8 +58,8 @@ flowchart TD
 
 定义位置：
 
-- [types.ts](/Users/tangjiaqiang/code/tangAgent/core/agent-core-ts/ts/types.ts)
-- [memory.ts](/Users/tangjiaqiang/code/tangAgent/core/agent-core-ts/ts/memory.ts)
+- [types.ts](/Users/tangjiaqiang/code/intelligentAgent/core/agent-core-ts/ts/types.ts)
+- [memory.ts](/Users/tangjiaqiang/code/intelligentAgent/core/agent-core-ts/ts/memory.ts)
 
 它的职责是：
 
@@ -90,7 +90,7 @@ renderPromptContext(threadId)
 
 定义位置：
 
-- [checkpointer.ts](/Users/tangjiaqiang/code/tangAgent/core/agent-core-ts/ts/checkpointer.ts)
+- [checkpointer.ts](/Users/tangjiaqiang/code/intelligentAgent/core/agent-core-ts/ts/checkpointer.ts)
 
 它的职责是：
 
@@ -115,8 +115,8 @@ renderPromptContext(threadId)
 
 关键位置：
 
-- [database.service.ts](/Users/tangjiaqiang/code/tangAgent/backend/agent-backend-ts/src/infra/database.service.ts)
-- [prisma-memory.store.ts](/Users/tangjiaqiang/code/tangAgent/backend/agent-backend-ts/src/infra/prisma-memory.store.ts)
+- [database.service.ts](/Users/tangjiaqiang/code/intelligentAgent/backend/agent-backend-ts/src/infra/database.service.ts)
+- [prisma-memory.store.ts](/Users/tangjiaqiang/code/intelligentAgent/backend/agent-backend-ts/src/infra/prisma-memory.store.ts)
 
 它本身不代表某一种数据，而是：
 
@@ -144,7 +144,7 @@ renderPromptContext(threadId)
 
 代码入口：
 
-- [agent.runtime.ts](/Users/tangjiaqiang/code/tangAgent/backend/agent-backend-ts/src/runtime/agent.runtime.ts)
+- [agent.runtime.ts](/Users/tangjiaqiang/code/intelligentAgent/backend/agent-backend-ts/src/runtime/agent.runtime.ts)
 
 这里实际注入的是：
 
@@ -170,14 +170,14 @@ AgentCore
 
 对应文件：
 
-- [agent.runtime.ts](/Users/tangjiaqiang/code/tangAgent/backend/agent-backend-ts/src/runtime/agent.runtime.ts)
-- [prisma-memory.store.ts](/Users/tangjiaqiang/code/tangAgent/backend/agent-backend-ts/src/infra/prisma-memory.store.ts)
+- [agent.runtime.ts](/Users/tangjiaqiang/code/intelligentAgent/backend/agent-backend-ts/src/runtime/agent.runtime.ts)
+- [prisma-memory.store.ts](/Users/tangjiaqiang/code/intelligentAgent/backend/agent-backend-ts/src/infra/prisma-memory.store.ts)
 
 ## 5.2 会话历史这条链路
 
 代码入口同样在：
 
-- [agent.runtime.ts](/Users/tangjiaqiang/code/tangAgent/backend/agent-backend-ts/src/runtime/agent.runtime.ts)
+- [agent.runtime.ts](/Users/tangjiaqiang/code/intelligentAgent/backend/agent-backend-ts/src/runtime/agent.runtime.ts)
 
 这里初始化的是：
 
@@ -190,7 +190,7 @@ createCheckpointerManager({
 
 再进入：
 
-- [checkpointer.ts](/Users/tangjiaqiang/code/tangAgent/core/agent-core-ts/ts/checkpointer.ts)
+- [checkpointer.ts](/Users/tangjiaqiang/code/intelligentAgent/core/agent-core-ts/ts/checkpointer.ts)
 
 这里会选择：
 
@@ -219,7 +219,7 @@ AgentCore
 
 ## 6. 为什么 `memory.ts` 里看不到 PostgreSQL 地址
 
-因为 [memory.ts](/Users/tangjiaqiang/code/tangAgent/core/agent-core-ts/ts/memory.ts) 主要是“能力抽象 + 两种通用实现”，不是当前 backend 的配置装配层。
+因为 [memory.ts](/Users/tangjiaqiang/code/intelligentAgent/core/agent-core-ts/ts/memory.ts) 主要是“能力抽象 + 两种通用实现”，不是当前 backend 的配置装配层。
 
 里面有：
 
@@ -329,16 +329,16 @@ new PrismaMemoryStore(prisma)
 
 结论：
 
-- 当前 `tangAgent` 的 TS backend **没有实际使用** `PostgresMemoryStore`
+- 当前 `intelligentAgent` 的 TS backend **没有实际使用** `PostgresMemoryStore`
 
 仓库中能找到的内容是：
 
 1. `PostgresMemoryStore` 的定义
-- [memory.ts](/Users/tangjiaqiang/code/tangAgent/core/agent-core-ts/ts/memory.ts)
+- [memory.ts](/Users/tangjiaqiang/code/intelligentAgent/core/agent-core-ts/ts/memory.ts)
 
 2. backend 当前真正注入的 memory store
-- [prisma-memory.store.ts](/Users/tangjiaqiang/code/tangAgent/backend/agent-backend-ts/src/infra/prisma-memory.store.ts)
-- [agent.runtime.ts](/Users/tangjiaqiang/code/tangAgent/backend/agent-backend-ts/src/runtime/agent.runtime.ts)
+- [prisma-memory.store.ts](/Users/tangjiaqiang/code/intelligentAgent/backend/agent-backend-ts/src/infra/prisma-memory.store.ts)
+- [agent.runtime.ts](/Users/tangjiaqiang/code/intelligentAgent/backend/agent-backend-ts/src/runtime/agent.runtime.ts)
 
 当前 runtime 实际代码是：
 
@@ -380,7 +380,7 @@ AgentCore
 
 ```ts
 import { Pool } from "pg";
-import { AgentCore, PostgresMemoryStore } from "@tang-agent/agent-core";
+import { AgentCore, PostgresMemoryStore } from "@intelligent-agent/agent-core";
 
 const pool = new Pool({ connectionString: process.env.POSTGRES_URL });
 const memoryStore = new PostgresMemoryStore(pool);

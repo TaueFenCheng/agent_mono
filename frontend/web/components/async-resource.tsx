@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Button, Card, CardContent } from "@tang-agent/ui";
+import { Button, Card, CardContent } from "@intelligent-agent/ui";
 import { AsyncResourceState, useAsyncResource, type UseAsyncResourceOptions } from "@/lib/use-async-resource";
 
 export interface AsyncResourceProps<T> extends UseAsyncResourceOptions<T> {

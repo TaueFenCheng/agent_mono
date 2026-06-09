@@ -11,7 +11,7 @@ import type {
   ThreadDetailResponse,
   ThreadListResponse,
   ThreadMemoryResponse
-} from "@tang-agent/core-types";
+} from "@intelligent-agent/core-types";
 import {
   AgentRunDto,
   CreateMemoryFactDto,

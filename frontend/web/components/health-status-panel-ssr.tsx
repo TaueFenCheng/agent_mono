@@ -1,4 +1,4 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@tang-agent/ui";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@intelligent-agent/ui";
 import { serverFetch } from "@/lib/server-fetch";
 
 export interface HealthStatusResponse {

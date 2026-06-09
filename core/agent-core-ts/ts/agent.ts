@@ -90,7 +90,7 @@ export class AgentCore {
       tools,
       prompt: promptSections.join("\n\n"),
       checkpointer: this.options.checkpointSaver,
-      name: "tang-agent-core"
+      name: "intelligent-agent-core"
     });
 
     const state = await graph.invoke(
@@ -213,7 +213,7 @@ export class AgentCore {
           tools,
           prompt: promptSections.join("\n\n"),
           checkpointer: this.options.checkpointSaver,
-          name: "tang-agent-core"
+          name: "intelligent-agent-core"
         });
 
         const state = await graph.invoke(

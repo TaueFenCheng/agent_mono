@@ -8,7 +8,7 @@ import { SkillRegistry } from "../ts/skills.js";
 
 describe("agent-core-ts advanced capabilities", () => {
   it("loads repo skills", () => {
-    const registry = new SkillRegistry(path.resolve("/Users/tangjiaqiang/code/tangAgent/skills"));
+    const registry = new SkillRegistry(path.resolve(__dirname, "../../../skills"));
     const skills = registry.listSkills();
     expect(skills.some((skill) => skill.name === "engineering-default")).toBe(true);
   });

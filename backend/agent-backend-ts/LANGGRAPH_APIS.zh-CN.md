@@ -1,6 +1,6 @@
 # LangGraph API 说明与本项目用法
 
-本文档只描述 `tangAgent` 当前代码中**实际使用到**的 `LangGraph` 相关 API，以及这些 API 在 `agent-backend-ts` 里的落点。
+本文档只描述 `intelligentAgent` 当前代码中**实际使用到**的 `LangGraph` 相关 API，以及这些 API 在 `agent-backend-ts` 里的落点。
 
 ## 1. 先看项目分层
 
@@ -16,11 +16,11 @@
 因此：
 
 - `LangGraph` 生产级调用主入口在  
-  [agent.ts](/Users/tangjiaqiang/code/tangAgent/core/agent-core-ts/ts/agent.ts)
+  [agent.ts](/Users/tangjiaqiang/code/intelligentAgent/core/agent-core-ts/ts/agent.ts)
 - `LangGraph checkpointer` 相关逻辑在  
-  [checkpointer.ts](/Users/tangjiaqiang/code/tangAgent/core/agent-core-ts/ts/checkpointer.ts)
+  [checkpointer.ts](/Users/tangjiaqiang/code/intelligentAgent/core/agent-core-ts/ts/checkpointer.ts)
 - backend 对这些能力的封装入口在  
-  [agent.runtime.ts](/Users/tangjiaqiang/code/tangAgent/backend/agent-backend-ts/src/runtime/agent.runtime.ts)
+  [agent.runtime.ts](/Users/tangjiaqiang/code/intelligentAgent/backend/agent-backend-ts/src/runtime/agent.runtime.ts)
 
 ## 2. 本项目实际用到的 LangGraph API
 
@@ -45,7 +45,7 @@ const graph = createReactAgent({
   tools,
   prompt: promptSections.join("\\n\\n"),
   checkpointer: this.options.checkpointSaver,
-  name: "tang-agent-core"
+  name: "intelligent-agent-core"
 });
 ```
 
@@ -58,7 +58,7 @@ const graph = createReactAgent({
 
 落点：
 
-- [agent.ts](/Users/tangjiaqiang/code/tangAgent/core/agent-core-ts/ts/agent.ts)
+- [agent.ts](/Users/tangjiaqiang/code/intelligentAgent/core/agent-core-ts/ts/agent.ts)
 
 ### 2.2 `graph.invoke(...)`
 
@@ -93,7 +93,7 @@ const state = await graph.invoke(
 
 落点：
 
-- [agent.ts](/Users/tangjiaqiang/code/tangAgent/core/agent-core-ts/ts/agent.ts)
+- [agent.ts](/Users/tangjiaqiang/code/intelligentAgent/core/agent-core-ts/ts/agent.ts)
 
 ### 2.3 `BaseCheckpointSaver`
 
@@ -116,8 +116,8 @@ import { BaseCheckpointSaver } from "@langchain/langgraph";
 
 落点：
 
-- [checkpointer.ts](/Users/tangjiaqiang/code/tangAgent/core/agent-core-ts/ts/checkpointer.ts)
-- [types.ts](/Users/tangjiaqiang/code/tangAgent/core/agent-core-ts/ts/types.ts)
+- [checkpointer.ts](/Users/tangjiaqiang/code/intelligentAgent/core/agent-core-ts/ts/checkpointer.ts)
+- [types.ts](/Users/tangjiaqiang/code/intelligentAgent/core/agent-core-ts/ts/types.ts)
 
 ### 2.4 `MemorySaver`
 
@@ -140,8 +140,8 @@ import { MemorySaver } from "@langchain/langgraph";
 
 落点：
 
-- [checkpointer.ts](/Users/tangjiaqiang/code/tangAgent/core/agent-core-ts/ts/checkpointer.ts)
-- [agent-core.test.ts](/Users/tangjiaqiang/code/tangAgent/core/agent-core-ts/test/agent-core.test.ts)
+- [checkpointer.ts](/Users/tangjiaqiang/code/intelligentAgent/core/agent-core-ts/ts/checkpointer.ts)
+- [agent-core.test.ts](/Users/tangjiaqiang/code/intelligentAgent/core/agent-core-ts/test/agent-core.test.ts)
 
 ### 2.5 `PostgresSaver.fromConnString(...)`
 
@@ -175,7 +175,7 @@ await saver.end();
 
 落点：
 
-- [checkpointer.ts](/Users/tangjiaqiang/code/tangAgent/core/agent-core-ts/ts/checkpointer.ts)
+- [checkpointer.ts](/Users/tangjiaqiang/code/intelligentAgent/core/agent-core-ts/ts/checkpointer.ts)
 
 ### 2.6 `checkpointer.list(...)`
 
@@ -211,7 +211,7 @@ for await (const checkpoint of checkpointer.list(config)) {
 
 落点：
 
-- [checkpointer.ts](/Users/tangjiaqiang/code/tangAgent/core/agent-core-ts/ts/checkpointer.ts)
+- [checkpointer.ts](/Users/tangjiaqiang/code/intelligentAgent/core/agent-core-ts/ts/checkpointer.ts)
 
 ### 2.7 `RunnableConfig`
 
@@ -240,7 +240,7 @@ function normalizeThreadConfig(threadId?: string): RunnableConfig {
 
 落点：
 
-- [checkpointer.ts](/Users/tangjiaqiang/code/tangAgent/core/agent-core-ts/ts/checkpointer.ts)
+- [checkpointer.ts](/Users/tangjiaqiang/code/intelligentAgent/core/agent-core-ts/ts/checkpointer.ts)
 
 ## 3. 只在测试中使用的 LangGraph API
 
@@ -281,7 +281,7 @@ function normalizeThreadConfig(threadId?: string): RunnableConfig {
 
 落点：
 
-- [agent-core.test.ts](/Users/tangjiaqiang/code/tangAgent/core/agent-core-ts/test/agent-core.test.ts)
+- [agent-core.test.ts](/Users/tangjiaqiang/code/intelligentAgent/core/agent-core-ts/test/agent-core.test.ts)
 
 ## 4. backend 实际暴露了哪些与 LangGraph 相关的能力
 
@@ -289,7 +289,7 @@ function normalizeThreadConfig(threadId?: string): RunnableConfig {
 
 主要入口在：
 
-- [agent.runtime.ts](/Users/tangjiaqiang/code/tangAgent/backend/agent-backend-ts/src/runtime/agent.runtime.ts)
+- [agent.runtime.ts](/Users/tangjiaqiang/code/intelligentAgent/backend/agent-backend-ts/src/runtime/agent.runtime.ts)
 
 ### 4.1 `invokeAgent(...)`
 
@@ -444,7 +444,7 @@ function normalizeThreadConfig(threadId?: string): RunnableConfig {
 
 ## 8. 简短结论
 
-当前 `tangAgent` 对 `LangGraph` 的使用比较克制，核心集中在两件事：
+当前 `intelligentAgent` 对 `LangGraph` 的使用比较克制，核心集中在两件事：
 
 1. 用 `createReactAgent + graph.invoke` 跑单次 agent 执行
 2. 用 `checkpointer` 做多轮线程恢复和历史查询

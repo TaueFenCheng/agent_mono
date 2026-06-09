@@ -18,7 +18,7 @@ make db-push-ts         # push Prisma schema to DB
 pnpm install            # install all workspace deps
 pnpm test               # run all workspace tests (vitest)
 pnpm -r test            # same, across all packages
-pnpm --filter <pkg> test  # single package, e.g. pnpm --filter @tang-agent/agent-core test
+pnpm --filter <pkg> test  # single package, e.g. pnpm --filter @intelligent-agent/agent-core test
 
 # Python - install & test
 cd backend/agent-backend-python && uv sync --dev
@@ -39,7 +39,7 @@ make dev-desktop        # Electron
 ## Project Structure
 
 ```
-tangAgent/
+intelligentAgent/
 ├── core/
 │   ├── agent-core-ts/          # TypeScript agent core (LangChain/LangGraph)
 │   │   ├── ts/                 # Source modules

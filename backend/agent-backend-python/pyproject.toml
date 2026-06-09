@@ -1,7 +1,7 @@
 [project]
 name = "agent-backend-python"
 version = "0.2.0"
-description = "Python agent backend for tangAgent"
+description = "Python agent backend for intelligentAgent"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -10,7 +10,7 @@ dependencies = [
   "redis>=5.2.0,<6.0.0",
   "pydantic>=2.11.0,<3.0.0",
   "sqlalchemy>=2.0.44,<3.0.0",
-  "tang-agent-core-python"
+  "intelligent-agent-core-python"
 ]
 
 [dependency-groups]
@@ -25,4 +25,4 @@ pythonpath = ["."]
 testpaths = ["tests"]
 
 [tool.uv.sources]
-tang-agent-core-python = { path = "../../core/agent-core-python", editable = true }
+intelligent-agent-core-python = { path = "../../core/agent-core-python", editable = true }

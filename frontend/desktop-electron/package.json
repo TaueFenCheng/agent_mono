@@ -1,5 +1,5 @@
 {
-  "name": "@tang-agent/desktop-electron",
+  "name": "@intelligent-agent/desktop-electron",
   "version": "0.1.0",
   "private": true,
   "main": "electron/main.cjs",
@@ -14,7 +14,7 @@
     "fix:electron": "ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ node ./node_modules/electron/install.js"
   },
   "dependencies": {
-    "@tang-agent/ui": "workspace:*",
+    "@intelligent-agent/ui": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
@@ -35,8 +35,8 @@
     "wait-on": "^8.0.3"
   },
   "build": {
-    "appId": "com.tang.agent.electron",
-    "productName": "tangAgent",
+    "appId": "com.intelligent.agent.electron",
+    "productName": "intelligentAgent",
     "files": [
       "dist/**/*",
       "electron/**/*",

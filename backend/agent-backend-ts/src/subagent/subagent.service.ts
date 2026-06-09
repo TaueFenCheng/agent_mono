@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import type { SubagentRunRecordResponse, SubagentRunResponse } from "@tang-agent/core-types";
+import type { SubagentRunRecordResponse, SubagentRunResponse } from "@intelligent-agent/core-types";
 import { DatabaseService } from "../infra/database.service.js";
 import { RedisService } from "../infra/redis.service.js";
 import { AgentQueueService } from "../agent/agent-queue.service.js";

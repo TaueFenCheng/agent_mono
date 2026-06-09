@@ -16,7 +16,7 @@ export class ObjectStorageModule {
           useFactory: (configService: ConfigService): ObjectStorageModuleOptions => ({
             endpoint: configService.get<string>("objectStorage.endpoint") ?? "http://127.0.0.1:9000",
             region: configService.get<string>("objectStorage.region") ?? "us-east-1",
-            bucket: configService.get<string>("objectStorage.bucket") ?? "tang-agent",
+            bucket: configService.get<string>("objectStorage.bucket") ?? "intelligent-agent",
             accessKeyId: configService.get<string>("objectStorage.accessKeyId") ?? "minioadmin",
             secretAccessKey: configService.get<string>("objectStorage.secretAccessKey") ?? "minioadmin",
             forcePathStyle: configService.get<boolean>("objectStorage.forcePathStyle") ?? true,

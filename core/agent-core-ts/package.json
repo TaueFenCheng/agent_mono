@@ -1,5 +1,5 @@
 {
-  "name": "@tang-agent/agent-core",
+  "name": "@intelligent-agent/agent-core",
   "version": "0.1.0",
   "private": true,
   "type": "module",

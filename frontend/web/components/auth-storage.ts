@@ -3,8 +3,8 @@ export interface StoredUser {
   name: string;
 }
 
-export const ACCESS_TOKEN_STORAGE_KEY = "tang_agent_access_token";
-export const USER_STORAGE_KEY = "tang_agent_user";
+export const ACCESS_TOKEN_STORAGE_KEY = "intelligent_agent_access_token";
+export const USER_STORAGE_KEY = "intelligent_agent_user";
 
 export function getStoredAccessToken() {
   if (typeof window === "undefined") return null;

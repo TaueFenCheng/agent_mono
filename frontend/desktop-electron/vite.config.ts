@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@tang-agent/ui": path.resolve(__dirname, "../../packages/ui/src/index.ts")
+      "@intelligent-agent/ui": path.resolve(__dirname, "../../packages/ui/src/index.ts")
     }
   },
   server: {

@@ -1,4 +1,4 @@
-# tangAgent
+# intelligentAgent
 
 前后端分离的 Agent Monorepo。
 

@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post, Res } from "@nestjs/common";
-import type { SubagentRunRecordResponse, SubagentRunResponse } from "@tang-agent/core-types";
+import type { SubagentRunRecordResponse, SubagentRunResponse } from "@intelligent-agent/core-types";
 import { SubagentService } from "./subagent.service.js";
 import { SubagentJobIdParamDto, SubagentRunDto, SubagentRunIdParamDto } from "./subagent.dto.js";
 

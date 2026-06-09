@@ -1,10 +1,10 @@
 {
-  "name": "@tang-agent/cli",
+  "name": "@intelligent-agent/cli",
   "version": "0.2.0",
   "private": true,
   "type": "module",
   "bin": {
-    "tang-agent": "dist/index.js"
+    "intelligent-agent": "dist/index.js"
   },
   "scripts": {
     "dev": "tsx src/index.tsx",
@@ -13,8 +13,8 @@
     "lint": "echo 'cli lint skipped'"
   },
   "dependencies": {
-    "@tang-agent/core-types": "workspace:*",
-    "@tang-agent/sdk-ts": "workspace:*",
+    "@intelligent-agent/core-types": "workspace:*",
+    "@intelligent-agent/sdk-ts": "workspace:*",
     "ink": "^5.1.0",
     "ink-text-input": "^6.0.0",
     "react": "^18.3.1"

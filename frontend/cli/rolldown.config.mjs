@@ -7,7 +7,7 @@ export default defineConfig({
   input: "src/index.tsx",
   external: (id) => {
     if (nodeBuiltins.has(id)) return true;
-    if (id.startsWith("@tang-agent/")) return true;
+    if (id.startsWith("@intelligent-agent/")) return true;
     if (id === "ink" || id === "ink-text-input") return true;
     if (id === "react" || id.startsWith("react/")) return true;
     return false;

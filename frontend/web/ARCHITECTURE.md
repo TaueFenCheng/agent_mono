@@ -4,12 +4,12 @@
 
 | 项目 | 说明 |
 |------|------|
-| 包名 | `@tang-agent/web` |
+| 包名 | `@intelligent-agent/web` |
 | Next.js 版本 | 15.3.3 |
 | 路由方式 | App Router（纯 `app/` 目录，无 `pages/`） |
 | 渲染方式 | **纯 CSR**（客户端渲染） |
 | 样式方案 | Tailwind CSS 3.x + CSS 变量主题系统 |
-| UI 组件库 | `@tang-agent/ui`（monorepo 内部包） |
+| UI 组件库 | `@intelligent-agent/ui`（monorepo 内部包） |
 | 数据请求 | 原生 `fetch` + 自研 `AsyncResource` hook |
 | 测试 | Vitest + @testing-library/react + jsdom |
 | 包管理 | pnpm workspace（monorepo） |
@@ -281,7 +281,7 @@ export function HealthPanel({ initialData }) {
 ```bash
 # 在 monorepo 根目录
 make dev-web                # 或
-pnpm --filter @tang-agent/web dev
+pnpm --filter @intelligent-agent/web dev
 ```
 
 开发服务器运行在 `http://localhost:3000`。
@@ -390,8 +390,8 @@ export function MyPanel() {
 ### 测试
 
 ```bash
-pnpm --filter @tang-agent/web test     # 运行测试
-pnpm --filter @tang-agent/web test:watch  # watch 模式
+pnpm --filter @intelligent-agent/web test     # 运行测试
+pnpm --filter @intelligent-agent/web test:watch  # watch 模式
 ```
 
 组件测试示例：

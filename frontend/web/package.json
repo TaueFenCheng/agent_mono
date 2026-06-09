@@ -1,5 +1,5 @@
 {
-  "name": "@tang-agent/web",
+  "name": "@intelligent-agent/web",
   "version": "0.2.0",
   "private": true,
   "scripts": {
@@ -10,7 +10,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@tang-agent/ui": "workspace:*",
+    "@intelligent-agent/ui": "workspace:*",
     "lucide-react": "^0.468.0",
     "next": "15.3.3",
     "react": "^18.3.1",

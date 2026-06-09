@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
 import { PrismaClient } from "@prisma/client";
-import type { RunRecordResponse, SubagentResult, SubagentRunRecordResponse } from "@tang-agent/core-types";
+import type { RunRecordResponse, SubagentResult, SubagentRunRecordResponse } from "@intelligent-agent/core-types";
 import { DATABASE_MODULE_OPTIONS, type DatabaseModuleOptions } from "./database.constants.js";
 
 @Injectable()

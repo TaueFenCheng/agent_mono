@@ -16,7 +16,7 @@ import {
   createCheckpointerManager,
   loadMcpPluginsFromEnv,
   registerBuiltinTools
-} from "@tang-agent/agent-core";
+} from "@intelligent-agent/agent-core";
 import { PrismaMemoryStore } from "../infra/prisma-memory.store.js";
 
 export interface AgentRuntime {
@@ -63,7 +63,7 @@ async function createCore(prisma: PrismaClient): Promise<AgentRuntime> {
       backend: process.env.AGENT_CHECKPOINTER_BACKEND ?? "postgres",
       connectionString:
         process.env.POSTGRES_URL ??
-        `postgresql://${process.env.POSTGRES_USER ?? "tang"}:${process.env.POSTGRES_PASSWORD ?? "tang"}@${process.env.POSTGRES_HOST ?? "127.0.0.1"}:${process.env.POSTGRES_PORT ?? "5432"}/${process.env.POSTGRES_DB ?? "tang_agent"}`
+        `postgresql://${process.env.POSTGRES_USER ?? "intelligent"}:${process.env.POSTGRES_PASSWORD ?? "intelligent"}@${process.env.POSTGRES_HOST ?? "127.0.0.1"}:${process.env.POSTGRES_PORT ?? "5432"}/${process.env.POSTGRES_DB ?? "intelligent_agent"}`
     });
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
