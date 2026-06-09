@@ -1,0 +1,62 @@
+{
+  "name": "trellis-doc-review",
+  "version": "2.0.0",
+  "description": "agent_mono：多角色子 Agent 方案审查（产品/开发/测试/UX/架构）",
+  "project": "agent_mono",
+  "orchestration": {
+    "coordinatorAgent": "trellis-doc-review",
+    "mainThread": "dispatch-only",
+    "roleAgentsParallel": true,
+    "reReviewAfterFixCritical": true
+  },
+  "documents": {
+    "required": ["prd.md"],
+    "optional": ["info.md", "research/*.md"],
+    "implementation": "docs/implementation/<slug>/{spec,design,api-interface,plan}.md",
+    "architecture": "docs/yunfan/**/*.md"
+  },
+  "roles": [
+    {
+      "id": "product",
+      "label": "产品",
+      "promptFile": "roles/product.md",
+      "subagentType": ["generalPurpose"],
+      "required": true
+    },
+    {
+      "id": "development",
+      "label": "开发",
+      "promptFile": "roles/development.md",
+      "subagentType": ["trellis-research", "generalPurpose"],
+      "required": true
+    },
+    {
+      "id": "qa",
+      "label": "测试",
+      "promptFile": "roles/qa.md",
+      "subagentType": ["generalPurpose"],
+      "required": true
+    },
+    {
+      "id": "ux",
+      "label": "用户体验",
+      "promptFile": "roles/ux.md",
+      "subagentType": ["generalPurpose"],
+      "required": true
+    },
+    {
+      "id": "architecture",
+      "label": "架构",
+      "promptFile": "roles/architecture.md",
+      "subagentType": ["trellis-research", "generalPurpose"],
+      "required": false,
+      "when": "cross-layer or docs/implementation/** exists"
+    }
+  ],
+  "severity": {
+    "CRITICAL": "在已启动的 doc-review 链路内阻碍编码；须 trellis-doc-fix 后重新 trellis-doc-review，或用户书面豁免",
+    "HIGH": "应修复",
+    "MEDIUM": "建议",
+    "LOW": "可选"
+  }
+}
