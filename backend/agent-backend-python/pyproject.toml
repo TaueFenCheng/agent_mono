@@ -9,8 +9,13 @@ dependencies = [
   "uvicorn>=0.32.0,<1.0.0",
   "redis>=5.2.0,<6.0.0",
   "pydantic>=2.11.0,<3.0.0",
+  "pydantic-settings>=2.7.0,<3.0.0",
   "sqlalchemy>=2.0.44,<3.0.0",
-  "intelligent-agent-core-python"
+  "intelligent-agent-core-python",
+  "PyJWT>=2.10.0,<3.0.0",
+  "boto3>=1.37.0,<2.0.0",
+  "python-multipart>=0.0.18",
+  "chardet>=5.2.0,<6.0.0",
 ]
 
 [dependency-groups]

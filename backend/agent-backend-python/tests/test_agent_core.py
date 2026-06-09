@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 from typing import Annotated, TypedDict
 
 from agent_core import InMemoryMemoryStore, SkillRegistry, get_thread_checkpoints, list_threads, make_checkpointer
@@ -17,7 +18,8 @@ async def _reply(state: _State):
 
 
 def test_skill_registry_loads_repo_skill():
-    registry = SkillRegistry("/Users/tangjiaqiang/code/tangAgent/skills")
+    skills_dir = str(Path(__file__).resolve().parents[3] / "skills")
+    registry = SkillRegistry(skills_dir)
     skills = registry.list_skills()
     assert any(skill.name == "engineering-default" for skill in skills)
 

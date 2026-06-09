@@ -1,10 +1,14 @@
+"""Pydantic request/response schemas — aligned with TS backend core-types."""
+
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
 Role = Literal["system", "user", "assistant", "tool"]
-Provider = Literal["openai", "anthropic", "gemini", "qwen", "glm"]
+Provider = Literal["openai", "anthropic", "gemini", "qwen", "glm", "deepseek"]
 
+
+# ── Agent ─────────────────────────────────────────────────────
 
 class ChatMessage(BaseModel):
     role: Role
@@ -16,6 +20,7 @@ class AgentRunRequest(BaseModel):
     threadId: str | None = None
     sessionId: str | None = None
     userId: str | None = None
+    message: str | None = None
     messages: list[ChatMessage] = Field(default_factory=list)
     model: str | None = None
     provider: Provider | None = None
@@ -45,6 +50,70 @@ class RunRecordResponse(BaseModel):
     createdAt: str
 
 
+# ── Subagent ──────────────────────────────────────────────────
+
+class SubagentTaskRequest(BaseModel):
+    taskId: str | None = None
+    role: Literal["planner", "researcher", "coder"]
+    prompt: str
+    provider: Provider | None = None
+    model: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class SubagentRunRequest(BaseModel):
+    threadId: str | None = None
+    sessionId: str | None = None
+    userId: str | None = None
+    prompt: str | None = None
+    tasks: list[SubagentTaskRequest] = Field(default_factory=list)
+    provider: Provider | None = None
+    model: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    enabledSkills: list[str] | None = None
+    maxConcurrency: int | None = None
+    taskTimeoutMs: int | None = None
+    planner: dict[str, Any] | None = None
+    researcher: dict[str, Any] | None = None
+    coder: dict[str, Any] | None = None
+
+
+class SubagentTaskResult(BaseModel):
+    taskId: str
+    role: str
+    status: str
+    threadId: str
+    provider: str | None = None
+    model: str | None = None
+    output: str | None = None
+    error: str | None = None
+    checkpointId: str | None = None
+    startedAt: str
+    endedAt: str
+    durationMs: int
+
+
+class SubagentRunResponse(BaseModel):
+    runId: str
+    threadId: str
+    summary: str
+    partial: bool
+    createdAt: str
+    results: list[SubagentTaskResult] = []
+
+
+class SubagentRunRecordResponse(BaseModel):
+    runId: str
+    threadId: str
+    prompt: str | None = None
+    summary: str
+    partial: bool
+    createdAt: str
+    results: list[SubagentTaskResult] = []
+
+
+# ── Threads ───────────────────────────────────────────────────
+
 class ThreadSummaryResponse(BaseModel):
     thread_id: str
     created_at: str | None = None
@@ -61,6 +130,8 @@ class ThreadDetailResponse(BaseModel):
     thread_id: str
     checkpoints: list[dict[str, Any]]
 
+
+# ── Memory ────────────────────────────────────────────────────
 
 class MemoryFactResponse(BaseModel):
     id: str
@@ -85,6 +156,8 @@ class ThreadMemoryResponse(BaseModel):
     facts: list[MemoryFactResponse]
 
 
+# ── Skills ────────────────────────────────────────────────────
+
 class SkillResponse(BaseModel):
     name: str
     description: str
@@ -96,6 +169,8 @@ class SkillResponse(BaseModel):
 class SkillListResponse(BaseModel):
     skills: list[SkillResponse]
 
+
+# ── MCP ───────────────────────────────────────────────────────
 
 class McpPluginInfo(BaseModel):
     name: str
@@ -127,6 +202,8 @@ class InvokeMcpToolResponse(BaseModel):
     toolName: str
     output: Any
 
+
+# ── Health ────────────────────────────────────────────────────
 
 class HealthResponse(BaseModel):
     status: Literal["ok"]
