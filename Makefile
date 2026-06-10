@@ -17,7 +17,7 @@ db-down:
 	docker compose -f infra/docker-compose.yml down
 
 db-push-ts:
-	pnpm --filter @tang-agent/agent-backend-ts prisma:push
+	pnpm --filter @intelligent-agent/agent-backend-ts prisma:push
 
 dev-web:
 	pnpm dev:web

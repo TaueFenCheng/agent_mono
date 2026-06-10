@@ -1,3 +1,5 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
@@ -27,11 +29,17 @@ import { DatabaseModule } from "./infra/database.module.js";
 import { RedisModule } from "./infra/redis.module.js";
 import { ObjectStorageModule } from "./attachment/object-storage.module.js";
 
+const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
+      envFilePath: [
+        path.resolve(moduleDir, "../.env"),
+        path.resolve(moduleDir, "../../../.env")
+      ],
       load: [postgresConfig, redisConfig, authConfig, objectStorageConfig, attachmentConfig],
       validate: validateEnv
     }),
