@@ -91,50 +91,33 @@ MCP 插件工具（McpToolPlugin）         → 独立 .mjs 文件，动态 impo
 
 ### 2.2 架构图
 
+一句话：**启动时把 MCP 插件注册进工具表，对话时 LLM 按需调用这些工具。**
+
 ```mermaid
 flowchart TB
-    subgraph env["配置"]
-        E1[AGENT_MCP_PLUGIN_MODULES]
+    subgraph start["① 启动（只做一次）"]
+        ENV[".env 写明插件路径"] --> LOAD["加载 MCP 插件"] --> REG["注册到 ToolRegistry"]
     end
 
-    subgraph loader["加载层 mcp-loader.ts"]
-        L1[loadMcpPluginsFromEnv]
-        L2[importPlugin]
+    subgraph run["② 每次对话"]
+        ASK["用户提问"] --> MERGE["组装工具列表<br/>内置 + MCP"]
+        MERGE --> REACT["LangGraph ReAct 循环"]
+        REACT --> DECIDE{"需要调工具?"}
+        DECIDE -->|是| EXEC["执行工具，带回结果"]
+        EXEC --> REACT
+        DECIDE -->|否| ANS["输出最终回答"]
     end
 
-    subgraph registry["注册层 tools.ts"]
-        R1[useMcpPlugin]
-        R2[buildMcpTools]
-        R3[buildTools]
-    end
-
-    subgraph core["核心层 agent.ts"]
-        C1[invoke / invokeStream]
-        C2[listMcpPlugins]
-        C3[listMcpTools]
-        C4[invokeMcpTool]
-    end
-
-    subgraph backend["后端层"]
-        B1[agent.runtime.ts]
-        B2[agent.service.ts]
-        B3[agent.controller.ts]
-    end
-
-    subgraph llm["LangGraph"]
-        G1[createReactAgent]
-        G2[LLM tool_call]
-    end
-
-    E1 --> L1 --> L2 --> R1
-    B1 --> L1
-    B1 --> C1
-    C1 --> R3 --> R2
-    R3 --> G1 --> G2
-    B3 --> B2 --> C2
-    B3 --> B2 --> C3
-    B3 --> B2 --> C4
+    REG -.-> MERGE
 ```
+
+| 图上步骤 | 对应模块 | 关键文件 |
+|---------|---------|---------|
+| 加载 MCP 插件 | 加载层 | `mcp-loader.ts` |
+| 注册到 ToolRegistry | 注册层 | `tools.ts` |
+| 组装工具列表 | 核心层 | `agent.ts` → `buildTools()` |
+| ReAct 循环 | LangGraph | `createReactAgent` |
+| HTTP 查询/直调 MCP | 网关层 | `agent.controller.ts`（旁路 API，不进主循环） |
 
 ---
 
