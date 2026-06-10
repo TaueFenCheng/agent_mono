@@ -5,9 +5,7 @@
       "command": "codegraph",
       "args": [
         "serve",
-        "--mcp",
-        "--path",
-        "/Users/heytea/Desktop/yunfan/agent_mono"
+        "--mcp"
       ]
     }
   }
