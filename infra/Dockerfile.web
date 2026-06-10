@@ -2,6 +2,7 @@
 FROM node:22-bookworm-slim AS builder
 
 RUN corepack enable && corepack prepare pnpm@10.28.0 --activate
+RUN pnpm config set registry https://registry.npmmirror.com
 
 WORKDIR /app
 
@@ -14,15 +15,15 @@ COPY packages/ui/package.json         packages/ui/
 COPY backend/agent-backend-ts/package.json backend/agent-backend-ts/
 COPY frontend/web/package.json        frontend/web/
 
-RUN pnpm install --frozen-lockfile
-
-# Copy source files
+# Copy source files BEFORE install (pnpm needs them to resolve workspace deps)
 COPY tsconfig.base.json ./
 COPY packages/core-types/    packages/core-types/
 COPY core/agent-core-ts/     core/agent-core-ts/
 COPY packages/sdk-ts/        packages/sdk-ts/
 COPY packages/ui/            packages/ui/
 COPY frontend/web/           frontend/web/
+
+RUN pnpm install --frozen-lockfile
 
 # Build shared packages first, then the web app
 RUN pnpm --filter @intelligent-agent/core-types build && \
@@ -47,7 +48,6 @@ ENV PORT=3000
 # Copy standalone output
 COPY --from=builder /app/frontend/web/.next/standalone ./
 COPY --from=builder /app/frontend/web/.next/static     frontend/web/.next/static/
-COPY --from=builder /app/frontend/web/public            frontend/web/public/
 
 EXPOSE 3000
 
