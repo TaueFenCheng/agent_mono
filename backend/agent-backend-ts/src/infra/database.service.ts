@@ -31,6 +31,7 @@ export class DatabaseService implements OnModuleDestroy {
   async appendRunRecord(input: {
     runId: string;
     threadId: string;
+    userId?: string | null;
     prompt: string;
     output: string;
     provider: string;
@@ -43,6 +44,7 @@ export class DatabaseService implements OnModuleDestroy {
       create: {
         runId: input.runId,
         threadId: input.threadId,
+        userId: input.userId ?? null,
         prompt: input.prompt,
         output: input.output,
         provider: input.provider,
@@ -50,6 +52,20 @@ export class DatabaseService implements OnModuleDestroy {
         checkpointId: input.checkpointId ?? null
       }
     });
+  }
+
+  /**
+   * 查询指定用户关联的所有 threadId（按最近使用时间倒序）
+   */
+  async listThreadIdsByUser(userId: string, limit = 50): Promise<string[]> {
+    const rows = await this.prisma.agentRun.findMany({
+      where: { userId },
+      select: { threadId: true },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      distinct: ["threadId"]
+    });
+    return rows.map((r) => r.threadId);
   }
 
   async getRun(runId: string): Promise<RunRecordResponse | null> {

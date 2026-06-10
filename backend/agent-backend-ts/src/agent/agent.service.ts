@@ -44,7 +44,7 @@ export class AgentService implements OnModuleDestroy {
     private readonly agentQueue: AgentQueueService
   ) {}
 
-  async run(payload: AgentRunDto): Promise<AgentRunResponse> {
+  async run(payload: AgentRunDto, userId?: string): Promise<AgentRunResponse> {
     const normalizedPayload = payload as AgentRunPayloadLike;
     const threadId = resolveThreadId(normalizedPayload, `thread-${Date.now()}`);
     const runId = `nest-${Date.now()}`;
@@ -76,7 +76,7 @@ export class AgentService implements OnModuleDestroy {
         threadId,
         provider: requestedProvider,
         model: payload.model,
-        metadata: { user_id: payload.userId, ...(payload.metadata ?? {}) },
+        metadata: { user_id: userId ?? payload.userId, ...(payload.metadata ?? {}) },
         enabledSkills: payload.enabledSkills,
         runId,
         prisma: this.db.getPrisma()
@@ -108,6 +108,7 @@ export class AgentService implements OnModuleDestroy {
     await this.db.appendRunRecord({
       runId,
       threadId,
+      userId: userId ?? null,
       prompt: lastMessage,
       output: response.output,
       provider: response.provider,
@@ -121,7 +122,8 @@ export class AgentService implements OnModuleDestroy {
 
   async runStream(
     payload: AgentRunDto,
-    onEvent: (event: Record<string, unknown>) => Promise<void> | void
+    onEvent: (event: Record<string, unknown>) => Promise<void> | void,
+    userId?: string
   ): Promise<void> {
     const normalizedPayload = payload as AgentRunPayloadLike;
     const threadId = resolveThreadId(normalizedPayload, `thread-${Date.now()}`);
@@ -169,7 +171,7 @@ export class AgentService implements OnModuleDestroy {
         threadId,
         provider: requestedProvider,
         model: payload.model,
-        metadata: { user_id: payload.userId, ...(payload.metadata ?? {}) },
+        metadata: { user_id: userId ?? payload.userId, ...(payload.metadata ?? {}) },
         enabledSkills: payload.enabledSkills,
         runId,
         prisma: this.db.getPrisma()
@@ -197,6 +199,7 @@ export class AgentService implements OnModuleDestroy {
       await this.db.appendRunRecord({
         runId,
         threadId,
+        userId: userId ?? null,
         prompt: lastMessage,
         output: runEndEvent.output,
         provider: runEndEvent.provider,
@@ -216,15 +219,27 @@ export class AgentService implements OnModuleDestroy {
     return run;
   }
 
-  async listThreads(limit = 20): Promise<ThreadListResponse> {
-    return { thread_list: await listRuntimeThreads(this.db.getPrisma(), limit) };
+  async listThreads(limit = 20, userId?: string): Promise<ThreadListResponse> {
+    const allThreads = await listRuntimeThreads(this.db.getPrisma(), limit * 3);
+    if (!userId) {
+      return { thread_list: allThreads.slice(0, limit) };
+    }
+    const userThreadIds = new Set(await this.db.listThreadIdsByUser(userId, limit * 3));
+    return { thread_list: allThreads.filter((t) => userThreadIds.has(t.thread_id)).slice(0, limit) };
   }
 
-  async getThread(threadId: string): Promise<ThreadDetailResponse> {
+  async getThread(threadId: string, userId?: string): Promise<ThreadDetailResponse> {
+    if (userId) {
+      const userThreadIds = new Set(await this.db.listThreadIdsByUser(userId));
+      if (!userThreadIds.has(threadId)) {
+        throw new NotFoundException("Thread not found");
+      }
+    }
     return await getRuntimeThread(this.db.getPrisma(), threadId);
   }
 
-  async listMemory(threadId: string): Promise<ThreadMemoryResponse> {
+  async listMemory(threadId: string, userId?: string): Promise<ThreadMemoryResponse> {
+    if (userId) await this.verifyThreadOwnership(threadId, userId);
     const facts = await listRuntimeMemoryFacts(this.db.getPrisma(), threadId);
     return {
       thread_id: threadId,
@@ -241,7 +256,8 @@ export class AgentService implements OnModuleDestroy {
     };
   }
 
-  async createMemory(threadId: string, payload: CreateMemoryFactRequest): Promise<MemoryFactResponse> {
+  async createMemory(threadId: string, payload: CreateMemoryFactRequest, userId?: string): Promise<MemoryFactResponse> {
+    if (userId) await this.verifyThreadOwnership(threadId, userId);
     const fact = await createRuntimeMemoryFact(this.db.getPrisma(), threadId, {
       content: payload.content,
       category: payload.category,
@@ -260,8 +276,16 @@ export class AgentService implements OnModuleDestroy {
     };
   }
 
-  async deleteMemory(threadId: string, factId: string): Promise<{ deleted: boolean }> {
+  async deleteMemory(threadId: string, factId: string, userId?: string): Promise<{ deleted: boolean }> {
+    if (userId) await this.verifyThreadOwnership(threadId, userId);
     return { deleted: await deleteRuntimeMemoryFact(this.db.getPrisma(), threadId, factId) };
+  }
+
+  private async verifyThreadOwnership(threadId: string, userId: string): Promise<void> {
+    const userThreadIds = new Set(await this.db.listThreadIdsByUser(userId));
+    if (!userThreadIds.has(threadId)) {
+      throw new NotFoundException("Thread not found");
+    }
   }
 
   async listSkills(enabledOnly = false): Promise<SkillListResponse> {
@@ -313,8 +337,9 @@ export class AgentService implements OnModuleDestroy {
     };
   }
 
-  async submitRun(payload: AgentRunDto): Promise<{ jobId: string; status: string }> {
-    return this.agentQueue.submitRun(payload);
+  async submitRun(payload: AgentRunDto, userId?: string): Promise<{ jobId: string; status: string }> {
+    const enriched = userId ? { ...payload, userId } : payload;
+    return this.agentQueue.submitRun(enriched);
   }
 
   async getJobStatus(jobId: string): Promise<{

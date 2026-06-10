@@ -13,6 +13,7 @@ datasource db {
 model AgentRun {
   runId        String   @id @map("run_id")
   threadId     String   @map("thread_id")
+  userId       String?  @map("user_id")
   prompt       String
   output       String
   provider     String   @default("qwen")
@@ -21,6 +22,7 @@ model AgentRun {
   createdAt    DateTime @default(now()) @map("created_at")
 
   @@index([threadId, createdAt], map: "idx_agent_runs_thread_created_at")
+  @@index([userId, createdAt(sort: Desc)], map: "idx_agent_runs_user_created_at")
   @@map("agent_runs")
 }
 

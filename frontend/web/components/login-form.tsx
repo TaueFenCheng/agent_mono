@@ -22,8 +22,8 @@ interface LoginResponse {
 
 export function LoginForm() {
   const router = useRouter();
-  const [sub, setSub] = useState("web-console");
-  const [name, setName] = useState("Web Console");
+  const [sub, setSub] = useState("");
+  const [name, setName] = useState("");
   const [bootstrapKey, setBootstrapKey] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -75,7 +75,7 @@ export function LoginForm() {
               required
               value={sub}
               onChange={(event) => setSub(event.target.value)}
-              placeholder="web-console"
+              placeholder="请输入唯一用户标识"
             />
           </label>
 

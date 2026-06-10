@@ -122,6 +122,7 @@ export class AgentQueueProcessor implements OnModuleInit {
     await this.db.appendRunRecord({
       runId,
       threadId,
+      userId: payload.userId ?? null,
       prompt: lastMessage,
       output: runtimeResult.output,
       provider: runtimeResult.provider,
