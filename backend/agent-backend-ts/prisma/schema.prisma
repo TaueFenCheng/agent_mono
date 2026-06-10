@@ -8,8 +8,7 @@ datasource db {
 }
 
 // Note: checkpoint tables are managed by LangGraph's PostgresSaver.setup()
-// They are NOT in this Prisma schema because they use different column types (BYTEA, etc.)
-// The tables will be auto-created when the agent runtime starts.
+// They are declared here with @@ignore so prisma db push won't drop them.
 
 model AgentRun {
   runId        String   @id @map("run_id")
@@ -132,4 +131,55 @@ model AttachmentChunk {
   @@index([attachmentId], map: "idx_attachment_chunks_attachment_id")
   @@index([threadId], map: "idx_attachment_chunks_thread_id")
   @@map("attachment_chunks")
+}
+
+// ── LangGraph Checkpoint tables (managed by PostgresSaver, ignored by Prisma) ──
+
+model Checkpoint {
+  threadId            String   @map("thread_id")
+  checkpointNs        String   @default("") @map("checkpoint_ns")
+  checkpointId        String   @map("checkpoint_id")
+  parentCheckpointId  String?  @map("parent_checkpoint_id")
+  type                String?
+  checkpoint          Json
+  metadata            Json     @default("{}")
+
+  @@id([threadId, checkpointNs, checkpointId])
+  @@map("checkpoints")
+  @@ignore
+}
+
+model CheckpointBlob {
+  threadId     String  @map("thread_id")
+  checkpointNs String  @default("") @map("checkpoint_ns")
+  channel      String
+  version      String
+  type         String
+  blob         Bytes?
+
+  @@id([threadId, checkpointNs, channel, version])
+  @@map("checkpoint_blobs")
+  @@ignore
+}
+
+model CheckpointWrite {
+  threadId     String  @map("thread_id")
+  checkpointNs String  @default("") @map("checkpoint_ns")
+  checkpointId String  @map("checkpoint_id")
+  taskId       String  @map("task_id")
+  idx          Int
+  channel      String
+  type         String?
+  blob         Bytes
+
+  @@id([threadId, checkpointNs, checkpointId, taskId, idx])
+  @@map("checkpoint_writes")
+  @@ignore
+}
+
+model CheckpointMigration {
+  v Int @id
+
+  @@map("checkpoint_migrations")
+  @@ignore
 }
