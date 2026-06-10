@@ -72,6 +72,8 @@ services:
       args:
         NEXT_PUBLIC_AGENT_API_BASE_URL: http://localhost:8080
     container_name: intelligent-agent-web
+    environment:
+      AGENT_API_INTERNAL_URL: http://api:8080
     ports:
       - "3000:3000"
     depends_on:
