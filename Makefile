@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: setup install install-python db-up db-down db-push-ts dev-web dev-web-full dev-desktop dev-desktop-full dev-desktop-tauri dev-cli dev-api-ts dev-api-python dev-frontend dev-backend build build-ts build-python test test-ts test-python lint clean fix-electron
+.PHONY: setup install install-python db-up db-down db-push-ts dev-web dev-web-full dev-desktop dev-desktop-full dev-desktop-tauri dev-cli dev-api-ts dev-api-python dev-docs dev-doc dev-frontend dev-backend build build-ts build-python test test-ts test-python lint clean fix-electron
 
 setup: db-up install db-push-ts install-python
 
@@ -20,6 +20,14 @@ db-push-ts:
 	pnpm --filter @intelligent-agent/agent-backend-ts prisma:push
 
 dev-web:
+	@for pid in $$(lsof -tiTCP:3000 -sTCP:LISTEN 2>/dev/null); do \
+	  if ps -p $$pid -o command= 2>/dev/null | grep -q 'rspress'; then \
+	    echo "[tangAgent] Error: port 3000 is occupied by RSPress docs (pid $$pid)."; \
+	    echo "  Run: kill $$pid"; \
+	    echo "  Docs should use port 3002: make dev-doc"; \
+	    exit 1; \
+	  fi; \
+	done
 	pnpm dev:web
 
 dev-web-full:
@@ -56,6 +64,10 @@ dev-api-ts:
 
 dev-api-python:
 	cd backend/agent-backend-python && uv run uvicorn app.main:app --reload --port 8081
+
+dev-docs dev-doc:
+	@echo "[tangAgent] starting docs on http://localhost:3002 (web uses :3000)"
+	pnpm docs:dev
 
 dev-frontend:
 	@echo "Run one of: make dev-web | make dev-desktop | make dev-desktop-tauri | make dev-cli"
