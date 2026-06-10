@@ -1,4 +1,8 @@
 export function getBackendBaseUrl() {
+  // 服务端优先用 AGENT_API_INTERNAL_URL（容器间通信），其次用 NEXT_PUBLIC_*
+  if (typeof window === "undefined") {
+    return process.env.AGENT_API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_AGENT_API_BASE_URL ?? "http://127.0.0.1:8080";
+  }
   return process.env.NEXT_PUBLIC_AGENT_API_BASE_URL ?? "http://127.0.0.1:8080";
 }
 

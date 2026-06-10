@@ -1,0 +1,9 @@
+#!/bin/sh
+set -e
+
+echo "⏳ Syncing Prisma schema to database..."
+cd /app/backend/agent-backend-ts
+pnpm exec prisma db push --skip-generate
+
+echo "🚀 Starting API server..."
+exec node /app/backend/agent-backend-ts/dist/main.js
