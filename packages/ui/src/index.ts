@@ -5,7 +5,10 @@ export type {
   AgentWorkspaceProps,
   AgentWorkspaceSendInput,
   AgentWorkspaceSendStream,
-  ModelOption
+  AttachmentStatusChangeHandler,
+  ComposerAttachmentItem,
+  ModelOption,
+  PrepareAttachmentsHandler
 } from "./components/agent-workspace";
 export type { AgentRunEvent } from "./types/agent-run-events";
 
@@ -19,7 +22,17 @@ export {
   Attachments,
   AttachmentPreview,
   AttachmentRemove,
+  AttachmentStatus,
   getAttachmentLabel
 } from "./components/ui/attachments";
 export type { AttachmentData } from "./components/ui/attachments";
+export type {
+  AttachmentJobRecord,
+  AttachmentProcessingStatus,
+  AttachmentRecord
+} from "./types/attachment-record";
+export {
+  attachmentProcessingStatusLabel,
+  mapRecordStatusToProcessing
+} from "./types/attachment-record";
 export { cn } from "./lib/utils";

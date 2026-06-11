@@ -4,7 +4,16 @@ import * as React from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Textarea } from "./ui/textarea";
-import { Attachment, AttachmentInfo, Attachments, AttachmentPreview, AttachmentRemove, type AttachmentData } from "./ui/attachments";
+import {
+  Attachment,
+  AttachmentInfo,
+  Attachments,
+  AttachmentPreview,
+  AttachmentRemove,
+  AttachmentStatus,
+  type AttachmentData
+} from "./ui/attachments";
+import type { AttachmentProcessingStatus } from "../types/attachment-record";
 import { cn } from "../lib/utils";
 import type { AgentRunEvent } from "../types/agent-run-events";
 
@@ -24,6 +33,24 @@ export interface AgentWorkspaceSession {
   updatedAt: string;
   messages: AgentWorkspaceMessage[];
 }
+
+export interface ComposerAttachmentItem {
+  id: string;
+  file: File;
+  data: AttachmentData;
+}
+
+export type AttachmentStatusChangeHandler = (
+  fileId: string,
+  status: AttachmentProcessingStatus,
+  error?: string
+) => void;
+
+export type PrepareAttachmentsHandler = (input: {
+  sessionId: string;
+  items: ComposerAttachmentItem[];
+  onStatusChange: AttachmentStatusChangeHandler;
+}) => Promise<AttachmentData[]>;
 
 export interface AgentWorkspaceSendInput {
   sessionId: string;
@@ -69,6 +96,7 @@ export interface AgentWorkspaceProps {
   selectedModelId?: string;
   onModelChange?: (modelId: string) => void;
   loadSessions?: () => Promise<AgentWorkspaceSession[]>;
+  onPrepareAttachments?: PrepareAttachmentsHandler;
   onSend?: (input: AgentWorkspaceSendInput) => Promise<string>;
   onSendStream?: AgentWorkspaceSendStream;
 }
@@ -186,6 +214,7 @@ export function AgentWorkspace({
   selectedModelId,
   onModelChange,
   loadSessions,
+  onPrepareAttachments,
   onSend,
   onSendStream
 }: AgentWorkspaceProps) {
@@ -289,6 +318,26 @@ export function AgentWorkspace({
     };
   }, []);
 
+  const updateComposerAttachmentStatus = React.useCallback(
+    (fileId: string, status: AttachmentProcessingStatus, error?: string) => {
+      setComposerAttachments((prev) =>
+        prev.map((item) =>
+          item.id === fileId
+            ? {
+                ...item,
+                data: {
+                  ...item.data,
+                  status,
+                  error
+                }
+              }
+            : item
+        )
+      );
+    },
+    []
+  );
+
   const runSend = React.useCallback(async () => {
     const message = input.trim();
     if (!message || loading) return;
@@ -303,12 +352,28 @@ export function AgentWorkspace({
     setToolsResolvedCount(undefined);
 
     const session = ensureSession(message);
+    let preparedAttachments = composerAttachments.map((item) => item.data);
+
+    if (onPrepareAttachments && composerAttachments.length > 0) {
+      try {
+        preparedAttachments = await onPrepareAttachments({
+          sessionId: session.id,
+          items: composerAttachments,
+          onStatusChange: updateComposerAttachmentStatus
+        });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "附件上传失败");
+        setLoading(false);
+        return;
+      }
+    }
+
     const userMessage: AgentWorkspaceMessage = {
       id: newId("user"),
       role: "user",
       content: message,
       createdAt: nowIso(),
-      attachments: composerAttachments.map((item) => item.data)
+      attachments: preparedAttachments
     };
 
     const pendingSession = appendMessage(session, userMessage);
@@ -320,8 +385,7 @@ export function AgentWorkspace({
     const sendInput: AgentWorkspaceSendInput = {
       sessionId: pendingSession.id,
       message,
-      attachments: composerAttachments.map((item) => item.data),
-      files: composerAttachments.map((item) => item.file),
+      attachments: preparedAttachments,
       provider: selectedModel?.provider,
       model: selectedModel?.model
     };
@@ -404,6 +468,11 @@ export function AgentWorkspace({
       const completed = appendMessage(pendingSession, assistantMessage);
       setSessions((prev) => upsertSession(prev, completed));
       setActiveSessionId(completed.id);
+      composerAttachments.forEach((item) => {
+        if (item.data.url.startsWith("blob:")) {
+          URL.revokeObjectURL(item.data.url);
+        }
+      });
       setComposerAttachments([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "unknown error");
@@ -415,7 +484,19 @@ export function AgentWorkspace({
       setToolTimeline([]);
       setToolsResolvedCount(undefined);
     }
-  }, [appendMessage, composerAttachments, ensureSession, input, loading, modelOptions, onSend, onSendStream, selectedModelId]);
+  }, [
+    appendMessage,
+    composerAttachments,
+    ensureSession,
+    input,
+    loading,
+    modelOptions,
+    onPrepareAttachments,
+    onSend,
+    onSendStream,
+    selectedModelId,
+    updateComposerAttachmentStatus
+  ]);
 
   const removeSession = React.useCallback((sessionId: string) => {
     setSessions((prev) => {
@@ -550,6 +631,7 @@ export function AgentWorkspace({
                           >
                             <AttachmentPreview />
                             <AttachmentInfo />
+                            <AttachmentStatus />
                           </Attachment>
                         ))}
                       </Attachments>
@@ -573,6 +655,7 @@ export function AgentWorkspace({
                 ref={fileInputRef}
                 type="file"
                 multiple
+                accept=".pdf,.doc,.docx,.txt,.md,.csv,.json,.png,.jpg,.jpeg,.webp"
                 className="hidden"
                 onChange={(event) => {
                   const files = Array.from(event.target.files ?? []);
@@ -610,6 +693,7 @@ export function AgentWorkspace({
                     >
                       <AttachmentPreview />
                       <AttachmentInfo />
+                      <AttachmentStatus />
                       <AttachmentRemove />
                     </Attachment>
                   ))}
@@ -631,6 +715,8 @@ export function AgentWorkspace({
               <div className="flex items-center justify-between gap-2">
                 {error ? (
                   <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+                ) : loading && composerAttachments.some((item) => item.data.status && item.data.status !== "ready") ? (
+                  <p className="text-xs text-foreground/55">正在上传并解析附件…</p>
                 ) : isActiveSessionPending ? (
                   <p className="text-xs text-foreground/55">请求处理中，请稍候</p>
                 ) : (

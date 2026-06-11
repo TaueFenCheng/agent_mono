@@ -2,6 +2,10 @@
 
 import * as React from "react";
 import { cn } from "../../lib/utils";
+import {
+  attachmentProcessingStatusLabel,
+  type AttachmentProcessingStatus
+} from "../../types/attachment-record";
 
 export interface AttachmentData {
   url: string;
@@ -9,6 +13,9 @@ export interface AttachmentData {
   mediaType?: string;
   title?: string;
   size?: number;
+  id?: string;
+  status?: AttachmentProcessingStatus;
+  error?: string;
 }
 
 type AttachmentVariant = "grid" | "inline";
@@ -136,6 +143,32 @@ export function AttachmentPreview({ className }: { className?: string }) {
   );
 }
 
+function statusClassName(status: AttachmentProcessingStatus): string {
+  switch (status) {
+    case "uploading":
+    case "processing":
+      return "text-amber-600 dark:text-amber-300";
+    case "ready":
+      return "text-emerald-600 dark:text-emerald-300";
+    case "failed":
+      return "text-red-600 dark:text-red-300";
+    default:
+      return "text-foreground/60";
+  }
+}
+
+export function AttachmentStatus({ className }: { className?: string }) {
+  const { data } = useAttachmentContext();
+  if (!data.status) return null;
+
+  const label = attachmentProcessingStatusLabel(data.status);
+  return (
+    <span className={cn("shrink-0 text-[10px] font-medium", statusClassName(data.status), className)}>
+      {label}
+    </span>
+  );
+}
+
 export function AttachmentInfo({ className }: { className?: string }) {
   const { data, onOpenPreview, variant } = useAttachmentContext();
   const label = getAttachmentLabel(data);
@@ -156,6 +189,7 @@ export function AttachmentInfo({ className }: { className?: string }) {
           {[data.mediaType, size].filter(Boolean).join(" · ")}
         </p>
       )}
+      {data.error ? <p className="truncate text-[10px] text-red-600 dark:text-red-300">{data.error}</p> : null}
     </div>
   );
 }

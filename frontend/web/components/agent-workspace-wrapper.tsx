@@ -1,7 +1,8 @@
 "use client";
 
 import { AgentWorkspace, type ModelOption } from "@intelligent-agent/ui";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { AttachmentRequestError, uploadAndProcessAttachment } from "@/lib/attachment-upload";
 import { consumeAgentRunSseStream } from "@/lib/sse-parser";
 
 interface ModelConfig {
@@ -29,6 +30,32 @@ export function AgentWorkspaceWrapper({ accessToken, onUnauthorized }: AgentWork
   const authHeaders = {
     authorization: `Bearer ${accessToken}`
   };
+
+  const prepareAttachments = useCallback<NonNullable<Parameters<typeof AgentWorkspace>[0]["onPrepareAttachments"]>>(
+    async ({ sessionId, items, onStatusChange }) => {
+      const results = [];
+      for (const item of items) {
+        onStatusChange(item.id, "uploading");
+        try {
+          const attachment = await uploadAndProcessAttachment(item.file, sessionId, authHeaders, {
+            onUploading: () => onStatusChange(item.id, "uploading"),
+            onProcessing: () => onStatusChange(item.id, "processing")
+          });
+          onStatusChange(item.id, "ready");
+          results.push(attachment);
+        } catch (error) {
+          if (error instanceof AttachmentRequestError && error.status === 401) {
+            onUnauthorized?.();
+          }
+          const message = error instanceof Error ? error.message : "附件上传失败";
+          onStatusChange(item.id, "failed", message);
+          throw error;
+        }
+      }
+      return results;
+    },
+    [accessToken, onUnauthorized]
+  );
 
   const assertOk = (response: Response) => {
     if (response.status === 401) {
@@ -87,6 +114,7 @@ export function AgentWorkspaceWrapper({ accessToken, onUnauthorized }: AgentWork
         const data = (await response.json()) as { sessions: Parameters<typeof AgentWorkspace>[0]["initialSessions"] };
         return data.sessions ?? [];
       }}
+      onPrepareAttachments={prepareAttachments}
       onSendStream={async ({ sessionId, message, provider, model }, { onEvent }) => {
         const response = await fetch("/api/agent-run/stream", {
           method: "POST",
