@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Textarea } from "./ui/textarea";
 import { Attachment, AttachmentInfo, Attachments, AttachmentPreview, AttachmentRemove, type AttachmentData } from "./ui/attachments";
 import { cn } from "../lib/utils";
+import type { AgentRunEvent } from "../types/agent-run-events";
 
 type MessageRole = "user" | "assistant";
 
@@ -40,6 +41,23 @@ export interface ModelOption {
   model: string;
 }
 
+export interface AgentWorkspaceSendStreamHandlers {
+  onEvent: (event: AgentRunEvent) => void;
+}
+
+export type AgentWorkspaceSendStream = (
+  input: AgentWorkspaceSendInput,
+  handlers: AgentWorkspaceSendStreamHandlers
+) => Promise<void>;
+
+interface ToolTimelineEntry {
+  id: string;
+  toolName: string;
+  status: "running" | "done" | "error";
+  durationMs?: number;
+  error?: string;
+}
+
 export interface AgentWorkspaceProps {
   title?: string;
   description?: string;
@@ -51,7 +69,8 @@ export interface AgentWorkspaceProps {
   selectedModelId?: string;
   onModelChange?: (modelId: string) => void;
   loadSessions?: () => Promise<AgentWorkspaceSession[]>;
-  onSend: (input: AgentWorkspaceSendInput) => Promise<string>;
+  onSend?: (input: AgentWorkspaceSendInput) => Promise<string>;
+  onSendStream?: AgentWorkspaceSendStream;
 }
 
 function nowIso() {
@@ -92,6 +111,65 @@ function AssistantLoadingMessage() {
   );
 }
 
+function StreamingAssistantPanel({
+  timeline,
+  toolsResolvedCount
+}: {
+  timeline: ToolTimelineEntry[];
+  toolsResolvedCount?: number;
+}) {
+  return (
+    <div className="flex justify-start" aria-live="polite" aria-label="助手正在处理">
+      <div className="max-w-[85%] space-y-2 rounded-lg bg-foreground/10 px-3 py-2 text-sm text-foreground">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-foreground/45" />
+          <span className="text-foreground/70">正在处理</span>
+        </div>
+        {typeof toolsResolvedCount === "number" ? (
+          <p className="text-xs text-foreground/60">已解析 {toolsResolvedCount} 个可用工具</p>
+        ) : null}
+        {timeline.length > 0 ? (
+          <ul className="space-y-1.5 border-l border-foreground/20 pl-3">
+            {timeline.map((entry) => (
+              <li key={entry.id} className="text-xs">
+                {entry.status === "running" ? (
+                  <span className="text-foreground/75">正在调用 <code className="rounded bg-foreground/10 px-1">{entry.toolName}</code></span>
+                ) : null}
+                {entry.status === "done" ? (
+                  <span className="text-foreground/75">
+                    已完成 <code className="rounded bg-foreground/10 px-1">{entry.toolName}</code>
+                    {typeof entry.durationMs === "number" ? ` · ${entry.durationMs}ms` : null}
+                  </span>
+                ) : null}
+                {entry.status === "error" ? (
+                  <span className="text-red-600 dark:text-red-300">
+                    工具 <code className="rounded bg-red-500/10 px-1">{entry.toolName}</code> 失败
+                    {entry.error ? `：${entry.error}` : null}
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="h-1 overflow-hidden rounded-full bg-foreground/10">
+            <div className="h-full w-1/2 animate-pulse rounded-full bg-foreground/35" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function findLastRunningToolIndex(entries: ToolTimelineEntry[], toolName: string): number {
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index];
+    if (entry && entry.toolName === toolName && entry.status === "running") {
+      return index;
+    }
+  }
+  return -1;
+}
+
 function upsertSession(list: AgentWorkspaceSession[], target: AgentWorkspaceSession): AgentWorkspaceSession[] {
   const next = [target, ...list.filter((item) => item.id !== target.id)];
   return next.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -108,7 +186,8 @@ export function AgentWorkspace({
   selectedModelId,
   onModelChange,
   loadSessions,
-  onSend
+  onSend,
+  onSendStream
 }: AgentWorkspaceProps) {
   const [sessions, setSessions] = React.useState<AgentWorkspaceSession[]>(initialSessions);
   const [activeSessionId, setActiveSessionId] = React.useState<string>(initialSessions[0]?.id ?? "");
@@ -116,6 +195,9 @@ export function AgentWorkspace({
   const [composerAttachments, setComposerAttachments] = React.useState<Array<{ id: string; file: File; data: AttachmentData }>>([]);
   const [loading, setLoading] = React.useState(false);
   const [pendingSessionId, setPendingSessionId] = React.useState("");
+  const [toolTimeline, setToolTimeline] = React.useState<ToolTimelineEntry[]>([]);
+  const [toolsResolvedCount, setToolsResolvedCount] = React.useState<number | undefined>(undefined);
+  const useStream = Boolean(onSendStream);
   const [historyLoading, setHistoryLoading] = React.useState(Boolean(loadSessions));
   const [historyError, setHistoryError] = React.useState("");
   const [error, setError] = React.useState("");
@@ -185,7 +267,7 @@ export function AgentWorkspace({
 
   React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
-  }, [activeSessionId, activeMessageCount, loading]);
+  }, [activeSessionId, activeMessageCount, loading, toolTimeline.length]);
 
   const ensureSession = React.useCallback(
     (seed?: string): AgentWorkspaceSession => {
@@ -210,8 +292,15 @@ export function AgentWorkspace({
   const runSend = React.useCallback(async () => {
     const message = input.trim();
     if (!message || loading) return;
+    if (!onSendStream && !onSend) {
+      setError("未配置消息发送处理器");
+      return;
+    }
+
     setError("");
     setLoading(true);
+    setToolTimeline([]);
+    setToolsResolvedCount(undefined);
 
     const session = ensureSession(message);
     const userMessage: AgentWorkspaceMessage = {
@@ -227,16 +316,85 @@ export function AgentWorkspace({
     setPendingSessionId(pendingSession.id);
     setInput("");
 
+    const selectedModel = modelOptions.find((m) => m.id === selectedModelId);
+    const sendInput: AgentWorkspaceSendInput = {
+      sessionId: pendingSession.id,
+      message,
+      attachments: composerAttachments.map((item) => item.data),
+      files: composerAttachments.map((item) => item.file),
+      provider: selectedModel?.provider,
+      model: selectedModel?.model
+    };
+
     try {
-      const selectedModel = modelOptions.find((m) => m.id === selectedModelId);
-      const output = await onSend({
-        sessionId: pendingSession.id,
-        message,
-        attachments: composerAttachments.map((item) => item.data),
-        files: composerAttachments.map((item) => item.file),
-        provider: selectedModel?.provider,
-        model: selectedModel?.model
-      });
+      let output = "";
+
+      if (onSendStream) {
+        let streamError: string | null = null;
+
+        await onSendStream(sendInput, {
+          onEvent: (event) => {
+            switch (event.type) {
+              case "tools_resolved":
+                setToolsResolvedCount(event.count);
+                break;
+              case "tool_start":
+                setToolTimeline((prev) => [
+                  ...prev,
+                  {
+                    id: newId("tool"),
+                    toolName: event.toolName,
+                    status: "running"
+                  }
+                ]);
+                break;
+              case "tool_end":
+                setToolTimeline((prev) => {
+                  const next = [...prev];
+                  const index = findLastRunningToolIndex(next, event.toolName);
+                  if (index >= 0) {
+                    next[index] = { ...next[index], status: "done", durationMs: event.durationMs };
+                  }
+                  return next;
+                });
+                break;
+              case "tool_error":
+                setToolTimeline((prev) => {
+                  const next = [...prev];
+                  const index = findLastRunningToolIndex(next, event.toolName);
+                  if (index >= 0) {
+                    next[index] = {
+                      ...next[index],
+                      status: "error",
+                      error: event.error,
+                      durationMs: event.durationMs
+                    };
+                  }
+                  return next;
+                });
+                break;
+              case "run_end":
+                output = event.output;
+                break;
+              case "error":
+                streamError = event.message;
+                break;
+              default:
+                break;
+            }
+          }
+        });
+
+        if (streamError) {
+          throw new Error(streamError);
+        }
+        if (!output) {
+          throw new Error("流式响应未返回最终回答");
+        }
+      } else if (onSend) {
+        output = await onSend(sendInput);
+      }
+
       const assistantMessage: AgentWorkspaceMessage = {
         id: newId("assistant"),
         role: "assistant",
@@ -254,8 +412,10 @@ export function AgentWorkspace({
     } finally {
       setLoading(false);
       setPendingSessionId("");
+      setToolTimeline([]);
+      setToolsResolvedCount(undefined);
     }
-  }, [appendMessage, ensureSession, input, loading, onSend]);
+  }, [appendMessage, composerAttachments, ensureSession, input, loading, modelOptions, onSend, onSendStream, selectedModelId]);
 
   const removeSession = React.useCallback((sessionId: string) => {
     setSessions((prev) => {
@@ -398,7 +558,13 @@ export function AgentWorkspace({
                   </div>
                 </div>
               ))}
-              {isActiveSessionPending ? <AssistantLoadingMessage /> : null}
+              {isActiveSessionPending ? (
+                useStream ? (
+                  <StreamingAssistantPanel timeline={toolTimeline} toolsResolvedCount={toolsResolvedCount} />
+                ) : (
+                  <AssistantLoadingMessage />
+                )
+              ) : null}
               <div ref={messagesEndRef} />
             </div>
 

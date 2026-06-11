@@ -1,7 +1,13 @@
 export const brandName = "intelligentAgent";
 
 export { AgentWorkspace } from "./components/agent-workspace";
-export type { AgentWorkspaceProps, AgentWorkspaceSendInput, ModelOption } from "./components/agent-workspace";
+export type {
+  AgentWorkspaceProps,
+  AgentWorkspaceSendInput,
+  AgentWorkspaceSendStream,
+  ModelOption
+} from "./components/agent-workspace";
+export type { AgentRunEvent } from "./types/agent-run-events";
 
 export { Button, buttonVariants } from "./components/ui/button";
 export { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./components/ui/card";

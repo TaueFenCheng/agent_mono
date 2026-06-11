@@ -2,6 +2,7 @@
 
 import { AgentWorkspace, type ModelOption } from "@intelligent-agent/ui";
 import { useEffect, useState } from "react";
+import { consumeAgentRunSseStream } from "@/lib/sse-parser";
 
 interface ModelConfig {
   id: string;
@@ -86,15 +87,28 @@ export function AgentWorkspaceWrapper({ accessToken, onUnauthorized }: AgentWork
         const data = (await response.json()) as { sessions: Parameters<typeof AgentWorkspace>[0]["initialSessions"] };
         return data.sessions ?? [];
       }}
-      onSend={async ({ sessionId, message, provider, model }) => {
-        const response = await fetch("/api/agent-run", {
+      onSendStream={async ({ sessionId, message, provider, model }, { onEvent }) => {
+        const response = await fetch("/api/agent-run/stream", {
           method: "POST",
           headers: { "content-type": "application/json", ...authHeaders },
           body: JSON.stringify({ threadId: sessionId, message, provider, model })
         });
-        assertOk(response);
-        const data = (await response.json()) as { output: string };
-        return data.output;
+
+        if (response.status === 401) {
+          onUnauthorized?.();
+          throw new Error("登录已失效");
+        }
+
+        if (!response.ok) {
+          const errorBody = (await response.json().catch(() => null)) as { message?: string } | null;
+          throw new Error(errorBody?.message || `HTTP ${response.status}`);
+        }
+
+        if (!response.body) {
+          throw new Error("流式响应体为空");
+        }
+
+        await consumeAgentRunSseStream(response.body, onEvent);
       }}
     />
   );
