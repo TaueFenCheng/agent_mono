@@ -52,6 +52,12 @@ export type PrepareAttachmentsHandler = (input: {
   onStatusChange: AttachmentStatusChangeHandler;
 }) => Promise<AttachmentData[]>;
 
+export type UploadAttachmentHandler = (input: {
+  sessionId: string;
+  item: ComposerAttachmentItem;
+  onStatusChange: AttachmentStatusChangeHandler;
+}) => Promise<AttachmentData>;
+
 export interface AgentWorkspaceSendInput {
   sessionId: string;
   message: string;
@@ -96,6 +102,8 @@ export interface AgentWorkspaceProps {
   selectedModelId?: string;
   onModelChange?: (modelId: string) => void;
   loadSessions?: () => Promise<AgentWorkspaceSession[]>;
+  /** 选文件后立即上传；未提供时仅在发送时上传 */
+  onUploadAttachment?: UploadAttachmentHandler;
   onPrepareAttachments?: PrepareAttachmentsHandler;
   onSend?: (input: AgentWorkspaceSendInput) => Promise<string>;
   onSendStream?: AgentWorkspaceSendStream;
@@ -340,7 +348,8 @@ export function AgentWorkspace({
 
   const runSend = React.useCallback(async () => {
     const message = input.trim();
-    if (!message || loading) return;
+    const hasAttachments = composerAttachments.length > 0;
+    if ((!message && !hasAttachments) || loading) return;
     if (!onSendStream && !onSend) {
       setError("未配置消息发送处理器");
       return;
@@ -351,16 +360,23 @@ export function AgentWorkspace({
     setToolTimeline([]);
     setToolsResolvedCount(undefined);
 
-    const session = ensureSession(message);
+    const effectiveMessage = message || "请结合附件内容回答。";
+    const session = ensureSession(effectiveMessage);
     let preparedAttachments = composerAttachments.map((item) => item.data);
 
-    if (onPrepareAttachments && composerAttachments.length > 0) {
+    const pendingAttachments = composerAttachments.filter(
+      (item) => item.data.status !== "ready" || !item.data.id
+    );
+
+    if (onPrepareAttachments && pendingAttachments.length > 0) {
       try {
-        preparedAttachments = await onPrepareAttachments({
+        const uploaded = await onPrepareAttachments({
           sessionId: session.id,
-          items: composerAttachments,
+          items: pendingAttachments,
           onStatusChange: updateComposerAttachmentStatus
         });
+        const uploadedById = new Map(pendingAttachments.map((item, index) => [item.id, uploaded[index]]));
+        preparedAttachments = composerAttachments.map((item) => uploadedById.get(item.id) ?? item.data);
       } catch (err) {
         setError(err instanceof Error ? err.message : "附件上传失败");
         setLoading(false);
@@ -371,7 +387,7 @@ export function AgentWorkspace({
     const userMessage: AgentWorkspaceMessage = {
       id: newId("user"),
       role: "user",
-      content: message,
+      content: effectiveMessage,
       createdAt: nowIso(),
       attachments: preparedAttachments
     };
@@ -384,7 +400,7 @@ export function AgentWorkspace({
     const selectedModel = modelOptions.find((m) => m.id === selectedModelId);
     const sendInput: AgentWorkspaceSendInput = {
       sessionId: pendingSession.id,
-      message,
+      message: effectiveMessage,
       attachments: preparedAttachments,
       provider: selectedModel?.provider,
       model: selectedModel?.model
@@ -726,7 +742,16 @@ export function AgentWorkspace({
                   <Button variant="outline" type="button" onClick={() => fileInputRef.current?.click()} disabled={loading}>
                     添加附件
                   </Button>
-                  <Button onClick={() => void runSend()} disabled={loading || !input.trim()}>
+                  <Button
+                    onClick={() => void runSend()}
+                    disabled={
+                      loading ||
+                      (!input.trim() && composerAttachments.length === 0) ||
+                      composerAttachments.some(
+                        (item) => item.data.status === "uploading" || item.data.status === "processing"
+                      )
+                    }
+                  >
                     {loading ? "等待回复" : "发送"}
                   </Button>
                 </div>

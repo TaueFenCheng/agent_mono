@@ -1,6 +1,6 @@
 import { type NextRequest } from "next/server";
 import { getBackendBaseUrl } from "../backend";
-import { getAccessTokenOrUnauthorized, proxyBackendJson } from "@/lib/attachment-bff";
+import { getAccessTokenOrUnauthorized, proxyBackendJson, rebuildMultipartFormData } from "@/lib/attachment-bff";
 
 export async function GET(req: NextRequest) {
   const threadId = req.nextUrl.searchParams.get("threadId");
@@ -16,7 +16,20 @@ export async function POST(req: Request) {
   const { accessToken, error } = getAccessTokenOrUnauthorized(req);
   if (error || !accessToken) return error ?? unauthorizedFallback();
 
-  const formData = await req.formData();
+  const incoming = await req.formData();
+  const fileEntry = incoming.get("file");
+  if (!fileEntry || typeof fileEntry === "string" || fileEntry.size <= 0) {
+    return Response.json(
+      {
+        code: 400,
+        message: "Missing upload file",
+        data: null
+      },
+      { status: 400 }
+    );
+  }
+
+  const formData = await rebuildMultipartFormData(incoming);
   const baseUrl = getBackendBaseUrl();
 
   let response: Response;
