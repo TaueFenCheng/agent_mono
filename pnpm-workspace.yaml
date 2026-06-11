@@ -3,3 +3,4 @@ packages:
   - backend/agent-backend-ts
   - core/*
   - packages/*
+  - docs

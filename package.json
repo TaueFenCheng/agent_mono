@@ -16,7 +16,10 @@
     "lint": "pnpm -r lint",
     "db:up": "docker compose -f infra/docker-compose.yml up -d",
     "db:down": "docker compose -f infra/docker-compose.yml down",
-    "fix:electron": "pnpm --filter @intelligent-agent/desktop-electron run fix:electron"
+    "fix:electron": "pnpm --filter @intelligent-agent/desktop-electron run fix:electron",
+    "docs:dev": "pnpm --filter @intelligent-agent/docs dev",
+    "docs:build": "pnpm --filter @intelligent-agent/docs build",
+    "docs:preview": "pnpm --filter @intelligent-agent/docs preview"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",

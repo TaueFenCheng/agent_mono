@@ -1,0 +1,44 @@
+{
+  "name": "trellis-fix-critical",
+  "version": "2.0.0",
+  "coordinatorAgent": "trellis-doc-fix",
+  "description": "agent_mono：多角色子 Agent 修缮 doc-review CRITICAL",
+  "orchestration": {
+    "coordinatorAgent": "trellis-doc-fix",
+    "mainThread": "dispatch-only",
+    "roleAgentsParallel": true,
+    "mustReDocReviewAfter": true
+  },
+  "roles": [
+    {
+      "id": "product",
+      "label": "产品",
+      "promptFile": "roles/product.md",
+      "subagentType": ["generalPurpose"]
+    },
+    {
+      "id": "development",
+      "label": "开发",
+      "promptFile": "roles/development.md",
+      "subagentType": ["trellis-research", "generalPurpose"]
+    },
+    {
+      "id": "qa",
+      "label": "测试",
+      "promptFile": "roles/qa.md",
+      "subagentType": ["generalPurpose"]
+    },
+    {
+      "id": "ux",
+      "label": "用户体验",
+      "promptFile": "roles/ux.md",
+      "subagentType": ["generalPurpose"]
+    },
+    {
+      "id": "architecture",
+      "label": "架构",
+      "promptFile": "roles/architecture.md",
+      "subagentType": ["trellis-research", "generalPurpose"]
+    }
+  ]
+}

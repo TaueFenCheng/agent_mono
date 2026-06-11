@@ -15,6 +15,7 @@
 - `core/agent-core-ts`: 共享 TS Agent Core 能力
 - `core/agent-core-python`: 共享 Python Agent Core 能力
 - `packages/*`: 其他共享 TS 包
+- `docs`: RSPress 文档站点（预览 `docs/` 下 Markdown）
 - `infra/docker-compose.yml`: PostgreSQL + Redis
 
 ## 一键初始化
@@ -47,6 +48,23 @@ make dev-desktop-full
 
 ```bash
 make dev-desktop-tauri
+```
+
+## 文档预览
+
+使用 RSPress 本地预览 `docs/` 目录下的技术文档：
+
+```bash
+make dev-doc    # 或 make dev-docs
+# 或
+pnpm docs:dev
+```
+
+浏览器访问 http://localhost:3002/（与 Web 端 `:3000` 端口分离）。构建静态站点：
+
+```bash
+pnpm docs:build
+pnpm docs:preview
 ```
 
 ## 构建与测试

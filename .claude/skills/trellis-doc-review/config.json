@@ -1,0 +1,7 @@
+{
+  "name": "trellis-doc-review",
+  "version": "2.0.0",
+  "description": "agent_mono：多角色子 Agent 方案审查（产品/开发/测试/UX/架构）",
+  "project": "agent_mono",
+  "cursorSkillPath": ".cursor/skills/trellis-doc-review"
+}

@@ -1,0 +1,15 @@
+{
+  "name": "@intelligent-agent/docs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "rspress dev --port 3002",
+    "build": "rspress build",
+    "preview": "rspress preview --port 3002"
+  },
+  "devDependencies": {
+    "@rspress/core": "^2.0.14",
+    "rspress-plugin-mermaid": "^1.0.1"
+  }
+}

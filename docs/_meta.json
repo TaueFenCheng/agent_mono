@@ -1,0 +1,21 @@
+[
+  {
+    "type": "section-header",
+    "label": "架构与设计"
+  },
+  {
+    "type": "dir-section-header",
+    "name": "implementation",
+    "label": "架构与设计"
+  },
+  {
+    "type": "dir-section-header",
+    "name": "note",
+    "label": "知识笔记"
+  },
+  {
+    "type": "dir-section-header",
+    "name": "interview",
+    "label": "面试问答"
+  }
+]
