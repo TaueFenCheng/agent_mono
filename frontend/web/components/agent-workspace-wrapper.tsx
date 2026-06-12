@@ -1,5 +1,8 @@
 "use client";
 
+import { useChat } from "@ai-sdk/react";
+import { TextStreamChatTransport } from "ai";
+import type { UIMessage } from "ai";
 import { AgentWorkspace, type ModelOption } from "@intelligent-agent/ui";
 import { useEffect, useState } from "react";
 
@@ -16,26 +19,54 @@ interface AgentWorkspaceWrapperProps {
   onUnauthorized?: () => void;
 }
 
+/** 从 UIMessage.parts 提取纯文本内容 */
+function extractTextContent(message: UIMessage): string {
+  return message.parts
+    .filter((p): p is { type: "text"; text: string } => p.type === "text")
+    .map((p) => p.text)
+    .join("");
+}
+
 /**
  * 客户端包装组件
- * - AgentWorkspace 需要客户端交互（onClick 等）
- * - 将客户端逻辑隔离在此，page.tsx 可保持为 Server Component
+ * 使用 Vercel AI SDK v6 useChat hook 管理对话状态
  */
 export function AgentWorkspaceWrapper({ accessToken, onUnauthorized }: AgentWorkspaceWrapperProps) {
   const [modelOptions, setModelOptions] = useState<ModelOption[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string>("");
+  const [inputValue, setInputValue] = useState<string>("");
+  const [threadId] = useState<string>(() => `web-${Date.now()}`);
+
+  const selectedModel = modelOptions.find((m) => m.id === selectedModelId);
 
   const authHeaders = {
-    authorization: `Bearer ${accessToken}`
+    authorization: `Bearer ${accessToken}`,
   };
 
-  const assertOk = (response: Response) => {
-    if (response.status === 401) {
-      onUnauthorized?.();
-      throw new Error("登录已失效");
-    }
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  };
+  // useChat hook (v6) — 管理对话状态和流式响应
+  const {
+    messages: aiMessages,
+    sendMessage,
+    status,
+    error,
+    setMessages,
+    clearError,
+  } = useChat({
+    transport: new TextStreamChatTransport({
+      api: "/api/chat",
+      headers: authHeaders,
+      body: {
+        threadId,
+        provider: selectedModel?.provider,
+        model: selectedModel?.model,
+      },
+    }),
+    onError: (err) => {
+      if (err.message.includes("401")) {
+        onUnauthorized?.();
+      }
+    },
+  });
 
   // 加载模型配置列表
   useEffect(() => {
@@ -43,7 +74,7 @@ export function AgentWorkspaceWrapper({ accessToken, onUnauthorized }: AgentWork
       try {
         const response = await fetch("/api/model-configs", {
           headers: authHeaders,
-          cache: "no-store"
+          cache: "no-store",
         });
         if (!response.ok) return;
         const result = (await response.json()) as { data: { configs: ModelConfig[] } };
@@ -52,11 +83,10 @@ export function AgentWorkspaceWrapper({ accessToken, onUnauthorized }: AgentWork
           id: config.id,
           name: config.name,
           provider: config.provider,
-          model: config.model
+          model: config.model,
         }));
         setModelOptions(options);
 
-        // 选中激活的配置
         const activeConfig = configs.find((c) => c.isActive);
         if (activeConfig) {
           setSelectedModelId(activeConfig.id);
@@ -70,32 +100,39 @@ export function AgentWorkspaceWrapper({ accessToken, onUnauthorized }: AgentWork
     void loadModelConfigs();
   }, [accessToken]);
 
+  // 将 UIMessage 转换为 AgentWorkspaceMessage
+  const agentMessages = aiMessages
+    .filter((m: UIMessage) => m.role === "user" || m.role === "assistant")
+    .map((m: UIMessage) => ({
+      id: m.id,
+      role: m.role as "user" | "assistant",
+      content: extractTextContent(m),
+      createdAt: new Date().toISOString(),
+    }));
+
+  const isLoading = status === "submitted" || status === "streaming";
+
+  // 处理发送
+  const handleSend = async (input: string) => {
+    clearError();
+    setInputValue("");
+    await sendMessage({ text: input });
+  };
+
   return (
     <AgentWorkspace
       title="intelligentAgent Web Console"
-      description="左侧会话区历史记录，右侧对话沟通面板"
+      description="Vercel AI SDK 驱动的对话面板"
       modelOptions={modelOptions}
       selectedModelId={selectedModelId}
       onModelChange={setSelectedModelId}
-      loadSessions={async () => {
-        const response = await fetch("/api/threads", {
-          headers: authHeaders,
-          cache: "no-store"
-        });
-        assertOk(response);
-        const data = (await response.json()) as { sessions: Parameters<typeof AgentWorkspace>[0]["initialSessions"] };
-        return data.sessions ?? [];
-      }}
-      onSend={async ({ sessionId, message, provider, model }) => {
-        const response = await fetch("/api/agent-run", {
-          method: "POST",
-          headers: { "content-type": "application/json", ...authHeaders },
-          body: JSON.stringify({ threadId: sessionId, message, provider, model })
-        });
-        assertOk(response);
-        const data = (await response.json()) as { output: string };
-        return data.output;
-      }}
+      externalMessages={agentMessages}
+      externalInput={inputValue}
+      externalLoading={isLoading}
+      externalError={error?.message ?? ""}
+      onExternalInputChange={setInputValue}
+      onExternalSend={handleSend}
+      onExternalClear={() => setMessages([])}
     />
   );
 }

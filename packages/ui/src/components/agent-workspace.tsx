@@ -51,7 +51,15 @@ export interface AgentWorkspaceProps {
   selectedModelId?: string;
   onModelChange?: (modelId: string) => void;
   loadSessions?: () => Promise<AgentWorkspaceSession[]>;
-  onSend: (input: AgentWorkspaceSendInput) => Promise<string>;
+  onSend?: (input: AgentWorkspaceSendInput) => Promise<string>;
+  /** 外部消息状态（Vercel AI SDK useChat 驱动） */
+  externalMessages?: AgentWorkspaceMessage[];
+  externalInput?: string;
+  externalLoading?: boolean;
+  externalError?: string;
+  onExternalInputChange?: (value: string) => void;
+  onExternalSend?: (input: string) => Promise<void>;
+  onExternalClear?: () => void;
 }
 
 function nowIso() {
@@ -108,7 +116,14 @@ export function AgentWorkspace({
   selectedModelId,
   onModelChange,
   loadSessions,
-  onSend
+  onSend,
+  externalMessages,
+  externalInput,
+  externalLoading,
+  externalError,
+  onExternalInputChange,
+  onExternalSend,
+  onExternalClear,
 }: AgentWorkspaceProps) {
   const [sessions, setSessions] = React.useState<AgentWorkspaceSession[]>(initialSessions);
   const [activeSessionId, setActiveSessionId] = React.useState<string>(initialSessions[0]?.id ?? "");
@@ -125,9 +140,18 @@ export function AgentWorkspace({
   const composerAttachmentsRef = React.useRef<Array<{ id: string; file: File; data: AttachmentData }>>([]);
   const messagesEndRef = React.useRef<HTMLDivElement | null>(null);
 
+  // 是否使用外部状态（Vercel AI SDK useChat 驱动）
+  const useExternal = Boolean(externalMessages);
+
   const activeSession = sessions.find((item) => item.id === activeSessionId) ?? null;
   const activeMessageCount = activeSession?.messages.length ?? 0;
   const isActiveSessionPending = loading && pendingSessionId === activeSessionId;
+
+  // 外部状态下的统一变量
+  const displayMessages = useExternal ? externalMessages! : activeSession?.messages ?? [];
+  const displayInput = useExternal ? (externalInput ?? "") : input;
+  const displayLoading = useExternal ? (externalLoading ?? false) : loading;
+  const displayError = useExternal ? (externalError ?? "") : error;
 
   React.useEffect(() => {
     composerAttachmentsRef.current = composerAttachments;
@@ -208,8 +232,21 @@ export function AgentWorkspace({
   }, []);
 
   const runSend = React.useCallback(async () => {
-    const message = input.trim();
-    if (!message || loading) return;
+    const message = displayInput.trim();
+    if (!message || displayLoading) return;
+
+    // 外部模式：直接调用 onExternalSend
+    if (useExternal && onExternalSend) {
+      try {
+        await onExternalSend(message);
+      } catch {
+        // error 由 useChat 的 onError 处理
+      }
+      return;
+    }
+
+    // 内部模式：原有逻辑
+    if (!onSend) return;
     setError("");
     setLoading(true);
 
@@ -229,7 +266,7 @@ export function AgentWorkspace({
 
     try {
       const selectedModel = modelOptions.find((m) => m.id === selectedModelId);
-      const output = await onSend({
+      const output = await onSend!({
         sessionId: pendingSession.id,
         message,
         attachments: composerAttachments.map((item) => item.data),
@@ -365,10 +402,10 @@ export function AgentWorkspace({
           </CardHeader>
           <CardContent className="grid h-[calc(100%-5.5rem)] grid-rows-[1fr_auto] gap-3">
             <div className="space-y-3 overflow-y-auto rounded-md border border-border/60 bg-background/40 p-3">
-              {(activeSession?.messages.length ?? 0) === 0 ? (
+              {displayMessages.length === 0 ? (
                 <p className="text-sm text-foreground/60">输入消息开始对话</p>
               ) : null}
-              {activeSession?.messages.map((message) => (
+              {displayMessages.map((message) => (
                 <div key={message.id} className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}>
                   <div
                     className={cn(
@@ -398,7 +435,8 @@ export function AgentWorkspace({
                   </div>
                 </div>
               ))}
-              {isActiveSessionPending ? <AssistantLoadingMessage /> : null}
+              {displayLoading && useExternal ? <AssistantLoadingMessage /> : null}
+              {isActiveSessionPending && !useExternal ? <AssistantLoadingMessage /> : null}
               <div ref={messagesEndRef} />
             </div>
 
@@ -452,9 +490,15 @@ export function AgentWorkspace({
 
               <Textarea
                 placeholder={placeholder}
-                value={input}
-                disabled={loading}
-                onChange={(event) => setInput(event.target.value)}
+                value={displayInput}
+                disabled={displayLoading}
+                onChange={(event) => {
+                  if (useExternal && onExternalInputChange) {
+                    onExternalInputChange(event.target.value);
+                  } else {
+                    setInput(event.target.value);
+                  }
+                }}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && !event.shiftKey) {
                     event.preventDefault();
@@ -463,19 +507,21 @@ export function AgentWorkspace({
                 }}
               />
               <div className="flex items-center justify-between gap-2">
-                {error ? (
-                  <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
-                ) : isActiveSessionPending ? (
+                {displayError ? (
+                  <p className="text-xs text-red-600 dark:text-red-400">{displayError}</p>
+                ) : displayLoading && useExternal ? (
+                  <p className="text-xs text-foreground/55">请求处理中，请稍候</p>
+                ) : isActiveSessionPending && !useExternal ? (
                   <p className="text-xs text-foreground/55">请求处理中，请稍候</p>
                 ) : (
                   <span />
                 )}
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" type="button" onClick={() => fileInputRef.current?.click()} disabled={loading}>
+                  <Button variant="outline" type="button" onClick={() => fileInputRef.current?.click()} disabled={displayLoading}>
                     添加附件
                   </Button>
-                  <Button onClick={() => void runSend()} disabled={loading || !input.trim()}>
-                    {loading ? "等待回复" : "发送"}
+                  <Button onClick={() => void runSend()} disabled={displayLoading || !displayInput.trim()}>
+                    {displayLoading ? "等待回复" : "发送"}
                   </Button>
                 </div>
               </div>
