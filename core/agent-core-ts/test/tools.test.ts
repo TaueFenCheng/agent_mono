@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { StaticMcpToolPlugin } from "../ts/mcp";
-import { ProviderRegistry } from "../ts/provider-router";
+import { ProviderRegistry, resolveProviderApiKey } from "../ts/provider-router";
 import { DefaultAgentToolRegistry, registerBuiltinTools } from "../ts/tools";
 
 describe("DefaultAgentToolRegistry", () => {
@@ -119,5 +119,52 @@ describe("ProviderRegistry", () => {
     expect(registry.normalizeProvider("corp")).toBe("custom");
     expect(registry.normalizeProvider("tongyi")).toBe("qwen");
     expect(registry.listProviders().some((item) => item.name === "custom")).toBe(true);
+  });
+
+  it("supports anthropic aliases and auth token fallback", () => {
+    const registry = new ProviderRegistry();
+    expect(registry.normalizeProvider("claude")).toBe("anthropic");
+
+    const routed = registry.createRoutedModel({
+      provider: "anthropic",
+      env: {
+        ANTHROPIC_AUTH_TOKEN: "fallback-token",
+        ANTHROPIC_BASE_URL: "https://token-plan-cn.xiaomimimo.com/anthropic",
+        ANTHROPIC_MODEL: "mimo-v2.5-pro"
+      }
+    });
+
+    expect(routed.provider).toBe("anthropic");
+    expect(routed.model).toBe("mimo-v2.5-pro");
+    expect(routed.baseUrl).toBe("https://token-plan-cn.xiaomimimo.com/anthropic");
+  });
+
+  it("prefers primary anthropic api key over auth token alias", () => {
+    const registry = new ProviderRegistry();
+    const config = registry.getConfig("anthropic");
+    expect(config).toBeTruthy();
+
+    const apiKey = resolveProviderApiKey(config!, {
+      ANTHROPIC_API_KEY: "primary-token",
+      ANTHROPIC_AUTH_TOKEN: "fallback-token"
+    });
+
+    expect(apiKey).toBe("primary-token");
+  });
+
+  it("keeps deepseek on the openai-compatible route", () => {
+    const registry = new ProviderRegistry();
+    const routed = registry.createRoutedModel({
+      provider: "deepseek",
+      env: {
+        DEEPSEEK_API_KEY: "deepseek-token",
+        DEEPSEEK_BASE_URL: "https://api.deepseek.com/v1",
+        DEEPSEEK_MODEL: "deepseek-v4-flash"
+      }
+    });
+
+    expect(routed.provider).toBe("deepseek");
+    expect(routed.model).toBe("deepseek-v4-flash");
+    expect(routed.baseUrl).toBe("https://api.deepseek.com/v1");
   });
 });

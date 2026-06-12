@@ -52,8 +52,10 @@ export class AgentService implements OnModuleDestroy {
     if (!lastMessage) {
       throw new BadRequestException("Request body must include `messages` (non-empty) or `message`.");
     }
-    const requestedProvider = payload.provider ?? process.env.AGENT_PROVIDER ?? "qwen";
-    const cacheKey = `agent:run:${requestedProvider}:${payload.model ?? "default"}:${threadId}:${lastMessage}`;
+    const requestedProvider = payload.provider;
+    const effectiveUserId = userId ?? payload.userId ?? "anonymous";
+    const cacheProvider = requestedProvider ?? process.env.AGENT_PROVIDER ?? "qwen";
+    const cacheKey = `agent:run:${effectiveUserId}:${cacheProvider}:${payload.model ?? "default"}:${threadId}:${lastMessage}`;
 
     const cached = await this.redis.getCachedOutput(cacheKey);
     if (cached) {
@@ -61,7 +63,7 @@ export class AgentService implements OnModuleDestroy {
         runId,
         threadId,
         output: cached,
-        provider: String(requestedProvider),
+        provider: String(cacheProvider),
         createdAt: new Date().toISOString(),
         cached: true,
         checkpointId: null,
@@ -79,6 +81,7 @@ export class AgentService implements OnModuleDestroy {
         metadata: { user_id: userId ?? payload.userId, ...(payload.metadata ?? {}) },
         enabledSkills: payload.enabledSkills,
         runId,
+        userId: effectiveUserId === "anonymous" ? null : effectiveUserId,
         prisma: this.db.getPrisma()
       });
 
@@ -97,7 +100,7 @@ export class AgentService implements OnModuleDestroy {
         runId,
         threadId,
         output: `agent runtime error: ${error instanceof Error ? error.message : String(error)}`,
-        provider: String(requestedProvider),
+        provider: String(cacheProvider),
         createdAt: new Date().toISOString(),
         cached: false,
         checkpointId: null,
@@ -132,8 +135,10 @@ export class AgentService implements OnModuleDestroy {
     if (!lastMessage) {
       throw new BadRequestException("Request body must include `messages` (non-empty) or `message`.");
     }
-    const requestedProvider = payload.provider ?? process.env.AGENT_PROVIDER ?? "qwen";
-    const cacheKey = `agent:run:${requestedProvider}:${payload.model ?? "default"}:${threadId}:${lastMessage}`;
+    const requestedProvider = payload.provider;
+    const effectiveUserId = userId ?? payload.userId ?? "anonymous";
+    const cacheProvider = requestedProvider ?? process.env.AGENT_PROVIDER ?? "qwen";
+    const cacheKey = `agent:run:${effectiveUserId}:${cacheProvider}:${payload.model ?? "default"}:${threadId}:${lastMessage}`;
 
     const cached = await this.redis.getCachedOutput(cacheKey);
     if (cached) {
@@ -147,7 +152,7 @@ export class AgentService implements OnModuleDestroy {
         type: "run_end",
         runId,
         threadId,
-        provider: String(requestedProvider),
+        provider: String(cacheProvider),
         output: cached,
         checkpointId: null,
         toolCount: 0,
@@ -174,6 +179,7 @@ export class AgentService implements OnModuleDestroy {
         metadata: { user_id: userId ?? payload.userId, ...(payload.metadata ?? {}) },
         enabledSkills: payload.enabledSkills,
         runId,
+        userId: effectiveUserId === "anonymous" ? null : effectiveUserId,
         prisma: this.db.getPrisma()
       })) {
         if (event.type === "run_end") {

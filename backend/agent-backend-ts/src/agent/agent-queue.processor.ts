@@ -100,9 +100,10 @@ export class AgentQueueProcessor implements OnModuleInit {
     if (!lastMessage) {
       throw new Error("job payload must include `messages` (non-empty) or `message`.");
     }
-    const requestedProvider = payload.provider ?? process.env.AGENT_PROVIDER ?? "qwen";
+    const requestedProvider = payload.provider;
+    const providerLabel = requestedProvider ?? process.env.AGENT_PROVIDER ?? "qwen";
 
-    this.logger.log(`processing job=${job.id} threadId=${threadId} provider=${requestedProvider}`);
+    this.logger.log(`processing job=${job.id} threadId=${threadId} provider=${providerLabel}`);
 
     await job.updateProgress(10);
 
@@ -114,6 +115,7 @@ export class AgentQueueProcessor implements OnModuleInit {
       metadata: { user_id: payload.userId, ...(payload.metadata ?? {}) },
       enabledSkills: payload.enabledSkills,
       runId,
+      userId: payload.userId ?? null,
       prisma: this.db.getPrisma()
     });
 

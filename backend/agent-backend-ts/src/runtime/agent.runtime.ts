@@ -32,9 +32,10 @@ export interface ActiveModelConfig {
   baseUrl: string;
 }
 
-export async function getActiveModelConfig(prisma: PrismaClient): Promise<ActiveModelConfig | null> {
+export async function getActiveModelConfig(prisma: PrismaClient, userId?: string | null): Promise<ActiveModelConfig | null> {
+  if (!userId) return null;
   const config = await prisma.modelConfig.findFirst({
-    where: { isActive: true }
+    where: { userId, isActive: true }
   });
   if (!config) return null;
   return {
@@ -141,6 +142,7 @@ export async function invokeAgent(input: {
   metadata?: Record<string, unknown>;
   enabledSkills?: string[];
   runId?: string;
+  userId?: string | null;
   prisma: PrismaClient;
 }) {
   const runtime = await getAgentRuntime(input.prisma);
@@ -151,7 +153,7 @@ export async function invokeAgent(input: {
   let providerConfigs: Record<string, { apiKey?: string; baseUrl?: string; model?: string }> | undefined;
 
   if (!provider && !model) {
-    const activeConfig = await getActiveModelConfig(input.prisma);
+    const activeConfig = await getActiveModelConfig(input.prisma, input.userId);
     if (activeConfig) {
       provider = activeConfig.provider;
       model = activeConfig.model;
@@ -186,6 +188,7 @@ export async function* invokeAgentStream(input: {
   metadata?: Record<string, unknown>;
   enabledSkills?: string[];
   runId?: string;
+  userId?: string | null;
   prisma: PrismaClient;
 }): AsyncGenerator<AgentRunEvent> {
   const runtime = await getAgentRuntime(input.prisma);
@@ -196,7 +199,7 @@ export async function* invokeAgentStream(input: {
   let providerConfigs: Record<string, { apiKey?: string; baseUrl?: string; model?: string }> | undefined;
 
   if (!provider && !model) {
-    const activeConfig = await getActiveModelConfig(input.prisma);
+    const activeConfig = await getActiveModelConfig(input.prisma, input.userId);
     if (activeConfig) {
       provider = activeConfig.provider;
       model = activeConfig.model;

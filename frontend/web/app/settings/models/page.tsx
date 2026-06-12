@@ -86,6 +86,16 @@ export default function ModelsPage() {
   }, []);
 
   const handleProviderChange = (provider: string) => {
+    if (provider === "custom") {
+      setFormData((prev) => ({
+        ...prev,
+        provider: "",
+        model: "",
+        baseUrl: ""
+      }));
+      return;
+    }
+
     const providerInfo = providers.find((p) => p.name === provider);
     setFormData((prev) => ({
       ...prev,
@@ -103,11 +113,15 @@ export default function ModelsPage() {
     try {
       const url = editingId ? `/api/model-configs/${editingId}` : "/api/model-configs";
       const method = editingId ? "PUT" : "POST";
+      const payload: Partial<FormData> = { ...formData };
+      if (editingId && !payload.apiKey?.trim()) {
+        delete payload.apiKey;
+      }
 
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
@@ -225,7 +239,7 @@ export default function ModelsPage() {
               <label className="text-sm font-medium">Provider</label>
               <select
                 className="w-full rounded-md border border-input/70 bg-background px-3 py-2 text-sm"
-                value={formData.provider}
+                value={providers.some((p) => p.name === formData.provider) ? formData.provider : "custom"}
                 onChange={(e) => handleProviderChange(e.target.value)}
                 required
               >
@@ -238,14 +252,14 @@ export default function ModelsPage() {
               </select>
             </div>
 
-            {formData.provider === "custom" && (
+            {!providers.some((p) => p.name === formData.provider) && (
               <div className="space-y-2">
                 <label className="text-sm font-medium">自定义 Provider 名称</label>
                 <input
                   type="text"
                   className="w-full rounded-md border border-input/70 bg-background px-3 py-2 text-sm"
                   placeholder="例如：my-provider"
-                  value={formData.provider === "custom" ? "" : formData.provider}
+                  value={formData.provider}
                   onChange={(e) => setFormData((prev) => ({ ...prev, provider: e.target.value }))}
                   required
                 />

@@ -80,6 +80,7 @@ model SubagentTaskRun {
 
 model ModelConfig {
   id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
   name      String   // 配置名称，如 "我的 DeepSeek"
   provider  String   // provider 标识，如 "deepseek" 或自定义名称
   model     String   // 模型名称，如 "deepseek-chat"
@@ -90,7 +91,8 @@ model ModelConfig {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@unique([provider, name])
+  @@unique([userId, provider, name])
+  @@index([userId, isActive], map: "idx_model_configs_user_active")
   @@map("model_configs")
 }
 

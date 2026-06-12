@@ -1,5 +1,6 @@
+import { ChatAnthropic } from "@langchain/anthropic";
 import { ChatOpenAI } from "@langchain/openai";
-import type { CreateRoutedModelInput, ProviderRouteConfig, RoutedModelResult } from "./types.js";
+import type { CreateRoutedModelInput, ProviderRouteConfig, ProviderRuntimeConfig, RoutedModelResult } from "./types.js";
 
 function buildDefaultProviderConfigs(): Record<string, ProviderRouteConfig> {
   return {
@@ -27,6 +28,15 @@ function buildDefaultProviderConfigs(): Record<string, ProviderRouteConfig> {
       defaultModel: "deepseek-chat",
       aliases: ["ds"]
     },
+    anthropic: {
+      apiKeyEnv: "ANTHROPIC_API_KEY",
+      apiKeyEnvAliases: ["ANTHROPIC_AUTH_TOKEN"],
+      baseUrlEnv: "ANTHROPIC_BASE_URL",
+      modelEnv: "ANTHROPIC_MODEL",
+      defaultBaseUrl: "https://api.anthropic.com",
+      defaultModel: "claude-3-5-haiku-latest",
+      aliases: ["claude"]
+    },
     openai: {
       apiKeyEnv: "OPENAI_API_KEY",
       baseUrlEnv: "OPENAI_BASE_URL",
@@ -35,6 +45,21 @@ function buildDefaultProviderConfigs(): Record<string, ProviderRouteConfig> {
       defaultModel: "gpt-4.1-mini"
     }
   };
+}
+
+export function resolveProviderApiKey(
+  config: ProviderRouteConfig,
+  env: Record<string, string | undefined>,
+  providerConfig: ProviderRuntimeConfig = {}
+): string | undefined {
+  if (providerConfig.apiKey) return providerConfig.apiKey;
+  const primary = env[config.apiKeyEnv];
+  if (primary) return primary;
+  for (const alias of config.apiKeyEnvAliases ?? []) {
+    const value = env[alias];
+    if (value) return value;
+  }
+  return undefined;
 }
 
 export class ProviderRegistry {
@@ -93,7 +118,7 @@ export class ProviderRegistry {
     }
 
     const providerConfig = input.providerConfig ?? input.providerConfigs?.[provider] ?? {};
-    const apiKey = providerConfig.apiKey ?? env[config.apiKeyEnv];
+    const apiKey = resolveProviderApiKey(config, env, providerConfig);
     if (!apiKey) {
       throw new Error(`Missing API key: ${config.apiKeyEnv}`);
     }
@@ -111,12 +136,20 @@ export class ProviderRegistry {
       model,
       baseUrl,
       temperature,
-      chatModel: new ChatOpenAI({
-        model,
-        apiKey,
-        configuration: { baseURL: baseUrl },
-        temperature
-      })
+      chatModel:
+        provider === "anthropic"
+          ? new ChatAnthropic({
+              model,
+              anthropicApiKey: apiKey,
+              clientOptions: { baseURL: baseUrl },
+              temperature
+            })
+          : new ChatOpenAI({
+              model,
+              apiKey,
+              configuration: { baseURL: baseUrl },
+              temperature
+            })
     };
   }
 }

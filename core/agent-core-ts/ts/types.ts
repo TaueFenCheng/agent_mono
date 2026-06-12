@@ -18,6 +18,7 @@ export interface ProviderRuntimeConfig {
 
 export interface ProviderRouteConfig {
   apiKeyEnv: string;
+  apiKeyEnvAliases?: string[];
   baseUrlEnv: string;
   modelEnv: string;
   defaultBaseUrl: string;

@@ -1,6 +1,6 @@
 import { IsBoolean, IsIn, IsNotEmpty, IsOptional, IsString, IsUrl, MaxLength } from "class-validator";
 
-const BUILTIN_PROVIDERS = ["qwen", "glm", "deepseek", "openai"] as const;
+export const BUILTIN_PROVIDERS = ["qwen", "glm", "deepseek", "openai", "anthropic"] as const;
 
 export class CreateModelConfigDto {
   @IsString()
@@ -105,6 +105,12 @@ export function getBuiltinProviders(): ProviderInfo[] {
       name: "openai",
       defaultBaseUrl: "https://api.openai.com/v1",
       defaultModel: "gpt-4.1-mini",
+      isBuiltin: true
+    },
+    {
+      name: "anthropic",
+      defaultBaseUrl: "https://api.anthropic.com",
+      defaultModel: "claude-3-5-haiku-latest",
       isBuiltin: true
     }
   ];
