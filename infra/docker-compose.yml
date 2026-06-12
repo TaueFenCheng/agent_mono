@@ -55,6 +55,8 @@ services:
       dockerfile: infra/Dockerfile.api
     container_name: intelligent-agent-api
     env_file: .env.docker
+    environment:
+      PRISMA_DB_PUSH_FLAGS: --accept-data-loss
     ports:
       - "8080:8080"
     depends_on:

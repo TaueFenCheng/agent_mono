@@ -1,43 +1,50 @@
-# ── Stage 1: Install dependencies & build ──
-FROM node:22-bookworm-slim AS builder
+# syntax=docker/dockerfile:1.7
+
+# ── Shared base ─────────────────────────────────────────────
+FROM node:22-bookworm-slim AS base
+
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
 
 RUN corepack enable && corepack prepare pnpm@10.28.0 --activate
-RUN pnpm config set registry https://registry.npmmirror.com
+RUN pnpm config set registry https://registry.npmmirror.com && pnpm config set store-dir /pnpm/store
 
 WORKDIR /app
 
-# Copy workspace manifests
+# ── Stage 1: Install dependencies ──────────────────────────
+FROM base AS deps
+
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
-COPY packages/core-types/package.json packages/core-types/
-COPY core/agent-core-ts/package.json  core/agent-core-ts/
-COPY packages/sdk-ts/package.json     packages/sdk-ts/
-COPY packages/ui/package.json         packages/ui/
-COPY backend/agent-backend-ts/package.json backend/agent-backend-ts/
-COPY frontend/web/package.json        frontend/web/
-
-# Copy source files BEFORE install (pnpm needs them to resolve workspace deps)
 COPY tsconfig.base.json ./
-COPY packages/core-types/    packages/core-types/
-COPY core/agent-core-ts/     core/agent-core-ts/
-COPY packages/sdk-ts/        packages/sdk-ts/
-COPY packages/ui/            packages/ui/
-COPY frontend/web/           frontend/web/
+COPY packages/core-types/package.json packages/core-types/
+COPY core/agent-core-ts/package.json core/agent-core-ts/
+COPY packages/sdk-ts/package.json packages/sdk-ts/
+COPY packages/ui/package.json packages/ui/
+COPY frontend/web/package.json frontend/web/
 
-RUN pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm install --frozen-lockfile
 
-# Build shared packages first, then the web app
+# ── Stage 2: Build ─────────────────────────────────────────
+FROM deps AS builder
+
+COPY packages/core-types/ packages/core-types/
+COPY core/agent-core-ts/ core/agent-core-ts/
+COPY packages/sdk-ts/ packages/sdk-ts/
+COPY packages/ui/ packages/ui/
+COPY frontend/web/ frontend/web/
+
 RUN pnpm --filter @intelligent-agent/core-types build && \
     pnpm --filter @intelligent-agent/agent-core build && \
     pnpm --filter @intelligent-agent/sdk-ts build && \
     pnpm --filter @intelligent-agent/ui build
 
-# NEXT_PUBLIC_* vars are baked at build time
 ARG NEXT_PUBLIC_AGENT_API_BASE_URL=http://localhost:8080
 ENV NEXT_PUBLIC_AGENT_API_BASE_URL=$NEXT_PUBLIC_AGENT_API_BASE_URL
 
 RUN pnpm --filter @intelligent-agent/web build
 
-# ── Stage 2: Production image (standalone) ──
+# ── Stage 3: Production image ──────────────────────────────
 FROM node:22-bookworm-slim AS runner
 
 WORKDIR /app
@@ -45,9 +52,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Copy standalone output
 COPY --from=builder /app/frontend/web/.next/standalone ./
-COPY --from=builder /app/frontend/web/.next/static     frontend/web/.next/static/
+COPY --from=builder /app/frontend/web/.next/static frontend/web/.next/static/
 
 EXPOSE 3000
 
