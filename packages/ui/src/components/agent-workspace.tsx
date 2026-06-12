@@ -209,7 +209,7 @@ export function AgentWorkspace({
 
   React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
-  }, [activeSessionId, activeMessageCount, loading]);
+  }, [activeSessionId, displayMessages.length, displayLoading]);
 
   const ensureSession = React.useCallback(
     (seed?: string): AgentWorkspaceSession => {
@@ -292,7 +292,7 @@ export function AgentWorkspace({
       setLoading(false);
       setPendingSessionId("");
     }
-  }, [appendMessage, ensureSession, input, loading, onSend]);
+  }, [displayInput, displayLoading, useExternal, onExternalSend, onSend, appendMessage, ensureSession, modelOptions, selectedModelId, composerAttachments]);
 
   const removeSession = React.useCallback((sessionId: string) => {
     setSessions((prev) => {
