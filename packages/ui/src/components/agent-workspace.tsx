@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Textarea } from "./ui/textarea";
 import { Attachment, AttachmentInfo, Attachments, AttachmentPreview, AttachmentRemove, type AttachmentData } from "./ui/attachments";
 import { cn } from "../lib/utils";
@@ -374,18 +375,21 @@ export function AgentWorkspace({
               </div>
               <div className="flex items-center gap-2">
                 {modelOptions.length > 0 ? (
-                  <select
-                    className="rounded-md border border-input/70 bg-background px-3 py-1.5 text-sm text-foreground hover:bg-foreground/5 focus:outline-none focus:ring-2 focus:ring-ring"
+                  <Select
                     value={selectedModelId || modelOptions[0]?.id || ""}
-                    onChange={(e) => onModelChange?.(e.target.value)}
-                    aria-label="选择模型"
+                    onValueChange={(value) => onModelChange?.(value)}
                   >
-                    {modelOptions.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.name}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="w-[200px]" aria-label="选择模型">
+                      <SelectValue placeholder="选择模型" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {modelOptions.map((option) => (
+                        <SelectItem key={option.id} value={option.id}>
+                          {option.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 ) : null}
                 {enableThemeToggle ? (
                   <Button

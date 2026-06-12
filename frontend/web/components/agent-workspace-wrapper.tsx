@@ -121,7 +121,7 @@ export function AgentWorkspaceWrapper({ accessToken, onUnauthorized }: AgentWork
 
   return (
     <AgentWorkspace
-      title="intelligentAgent Web Console"
+      title="IntelligentAgent Web Agent"
       description="Vercel AI SDK 驱动的对话面板"
       modelOptions={modelOptions}
       selectedModelId={selectedModelId}

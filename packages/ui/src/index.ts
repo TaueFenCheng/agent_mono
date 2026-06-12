@@ -17,3 +17,13 @@ export {
 } from "./components/ui/attachments";
 export type { AttachmentData } from "./components/ui/attachments";
 export { cn } from "./lib/utils";
+export {
+  Select,
+  SelectGroup,
+  SelectValue,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+} from "./components/ui/select";
