@@ -1,5 +1,6 @@
 import { AIMessage, HumanMessage, type BaseMessage } from "@langchain/core/messages";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
+import type { StreamMode } from "@langchain/langgraph";
 import { getLatestCheckpointId, getThread, listThreads } from "./checkpointer.js";
 import { createAgentEventStream, type AgentEventStream } from "./event-stream.js";
 import type { AgentRunEvent } from "./events.js";
@@ -216,25 +217,73 @@ export class AgentCore {
           name: "intelligent-agent-core"
         });
 
-        const state = await graph.invoke(
-          {
-            messages: [...(input.messages ?? []), new HumanMessage(input.prompt)]
+        // 流式执行：用 streamMode="messages" 获取 token 级输出
+        let fullOutput = "";
+        const streamInput = {
+          messages: [...(input.messages ?? []), new HumanMessage(input.prompt)]
+        };
+        const streamConfig = {
+          configurable: {
+            thread_id: input.threadId,
+            run_id: input.runId ?? input.threadId
           },
-          {
-            configurable: {
-              thread_id: input.threadId,
-              run_id: input.runId ?? input.threadId
+          streamMode: ["messages"] as StreamMode[],
+          version: "v2"
+        };
+
+        try {
+          const eventStream = graph.streamEvents(
+            streamInput,
+            streamConfig as any
+          );
+
+          for await (const event of eventStream) {
+            // LangGraph streamEvents: on_chat_model_stream 包含 token chunks
+            if (
+              event.event === "on_chat_model_stream" &&
+              event.data?.chunk?.content
+            ) {
+              const token =
+                typeof event.data.chunk.content === "string"
+                  ? event.data.chunk.content
+                  : "";
+              if (token) {
+                fullOutput += token;
+                stream.push({
+                  type: "text_delta",
+                  runId,
+                  threadId: input.threadId,
+                  text: token,
+                  at: new Date().toISOString()
+                });
+              }
             }
           }
-        );
+        } catch {
+          // streamEvents 不可用时回退到非流式
+          const state = await graph.invoke(streamInput, streamConfig);
+          const messages = state.messages as BaseMessage[];
+          fullOutput = extractLastAssistantText(messages);
+        }
 
-        const messages = state.messages as BaseMessage[];
+        const finalOutput = fullOutput || "";
+
+        // 获取 checkpointId
+        let checkpointId: string | null = null;
+        if (this.options.checkpointSaver) {
+          try {
+            checkpointId = await getLatestCheckpointId(this.options.checkpointSaver, input.threadId);
+          } catch {
+            // ignore
+          }
+        }
+
         const finalResult: AgentInvokeOutput = {
-          output: extractLastAssistantText(messages),
+          output: finalOutput,
           provider: routed.provider,
-          messages,
+          messages: [],
           toolCount: tools.length,
-          checkpointId: this.options.checkpointSaver ? await getLatestCheckpointId(this.options.checkpointSaver, input.threadId) : null,
+          checkpointId,
           threadId: input.threadId
         };
 

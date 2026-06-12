@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { getBackendBaseUrl, getBearerTokenFromRequest } from "../backend";
 
 /**
- * POST /api/chat — Vercel AI SDK v6 useChat 兼容端点
- * 接收 UIMessage[] 格式，代理到后端 /v1/agents/runs
- * 返回 text/plain 流式格式
+ * POST /api/chat — 真正的 token 级流式
+ * 后端 /v1/agents/runs/stream 返回 SSE
+ * text_delta 事件逐 token 输出，run_end 事件结束
  */
 export async function POST(req: Request) {
   const body = (await req.json()) as {
@@ -28,7 +28,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // 从最后一条用户消息提取文本（兼容 v5 content 和 v6 parts 格式）
   const lastUserMessage = body.messages?.filter((m) => m.role === "user").pop();
   const lastMessage = lastUserMessage
     ? lastUserMessage.content ??
@@ -42,7 +41,7 @@ export async function POST(req: Request) {
   const threadId = body.threadId || `chat-${Date.now()}`;
 
   try {
-    const response = await fetch(`${baseUrl}/v1/agents/runs`, {
+    const response = await fetch(`${baseUrl}/v1/agents/runs/stream`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -69,18 +68,62 @@ export async function POST(req: Request) {
       });
     }
 
-    const result = (await response.json()) as {
-      code?: number;
-      data?: { output?: string };
-    };
-    const output = result.data?.output ?? "";
+    const reader = response.body?.getReader();
+    if (!reader) {
+      return new Response("", { status: 200 });
+    }
 
-    // 返回 text/plain 流式格式（TextStreamChatTransport 兼容）
     const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
     const stream = new ReadableStream({
-      start(controller) {
-        controller.enqueue(encoder.encode(output));
-        controller.close();
+      async start(controller) {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() ?? "";
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed || trimmed.startsWith(":")) continue;
+
+              if (trimmed.startsWith("data: ")) {
+                const jsonStr = trimmed.slice(6);
+                try {
+                  const event = JSON.parse(jsonStr) as {
+                    type: string;
+                    text?: string;
+                    output?: string;
+                    message?: string;
+                  };
+
+                  if (event.type === "text_delta" && event.text) {
+                    // 逐 token 输出
+                    controller.enqueue(encoder.encode(event.text));
+                  } else if (event.type === "run_end" && event.output) {
+                    // run_end 时如果没收到过 text_delta，用 output 兜底
+                    // 已经流式输出过了就不再重复
+                  } else if (event.type === "error") {
+                    controller.enqueue(
+                      encoder.encode(`\n[Error: ${event.message}]`)
+                    );
+                  }
+                } catch {
+                  // 非 JSON 行
+                }
+              }
+            }
+          }
+        } catch (error) {
+          controller.error(error);
+        } finally {
+          controller.close();
+        }
       },
     });
 
