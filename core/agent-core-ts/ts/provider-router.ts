@@ -142,7 +142,8 @@ export class ProviderRegistry {
               model,
               anthropicApiKey: apiKey,
               clientOptions: { baseURL: baseUrl },
-              temperature
+              temperature,
+              topP: 1
             })
           : new ChatOpenAI({
               model,
