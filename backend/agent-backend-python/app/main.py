@@ -16,7 +16,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from redis.asyncio import Redis
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from .config import settings
 from .db_models import Base
@@ -37,7 +42,9 @@ from .routers.model_configs import router as model_configs_router
 from .routers.providers import router as providers_router
 from .routers.attachments import router as attachments_router
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s"
+)
 logger = logging.getLogger("agent-backend")
 
 
@@ -67,6 +74,12 @@ async def lifespan(app: FastAPI):
         memory_store = SqlAlchemyMemoryStore(db_session_factory)
         await memory_store.setup()
         checkpointer_backend = settings.AGENT_CHECKPOINTER_BACKEND
+        # Seed default user if configured
+        async with db_session_factory() as session:
+            from .auth.router import seed_default_user as _seed
+
+            await _seed(session)
+            await session.commit()
         logger.info("Postgres connected, checkpointer=%s", checkpointer_backend)
     except Exception as exc:
         logger.warning("Postgres unavailable (%s), falling back to in-memory", exc)
@@ -88,7 +101,9 @@ async def lifespan(app: FastAPI):
     # ── Agent Runtime ─────────────────────────────────────────
     async with make_checkpointer(
         backend=checkpointer_backend,
-        connection_string=settings.postgres_dsn if checkpointer_backend == "postgres" else None,
+        connection_string=settings.postgres_dsn
+        if checkpointer_backend == "postgres"
+        else None,
     ) as checkpointer:
         runtime = AgentCoreRuntime(
             checkpointer=checkpointer,

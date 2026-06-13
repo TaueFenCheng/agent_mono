@@ -3,3 +3,7 @@ packages:
   - backend/agent-backend-ts
   - core/*
   - packages/*
+
+ignoredBuiltDependencies:
+  - bcrypt
+  - tesseract.js

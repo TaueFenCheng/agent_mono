@@ -22,9 +22,8 @@ interface LoginResponse {
 
 export function LoginForm() {
   const router = useRouter();
-  const [sub, setSub] = useState("");
-  const [name, setName] = useState("");
-  const [bootstrapKey, setBootstrapKey] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -43,7 +42,7 @@ export function LoginForm() {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ sub, name, bootstrapKey })
+        body: JSON.stringify({ username, password })
       });
       const result = (await response.json()) as LoginResponse;
 
@@ -68,29 +67,25 @@ export function LoginForm() {
       <CardContent>
         <form className="space-y-4" onSubmit={handleSubmit}>
           <label className="block space-y-2 text-sm">
-            <span className="text-foreground/75">用户标识</span>
+            <span className="text-foreground/75">用户名</span>
             <Input
               autoComplete="username"
               required
-              value={sub}
-              onChange={(event) => setSub(event.target.value)}
-              placeholder="请输入唯一用户标识"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              placeholder="请输入用户名"
             />
           </label>
 
           <label className="block space-y-2 text-sm">
-            <span className="text-foreground/75">昵称</span>
-            <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Web Console" />
-          </label>
-
-          <label className="block space-y-2 text-sm">
-            <span className="text-foreground/75">Bootstrap Key</span>
+            <span className="text-foreground/75">密码</span>
             <Input
               autoComplete="current-password"
               type="password"
-              value={bootstrapKey}
-              onChange={(event) => setBootstrapKey(event.target.value)}
-              placeholder="未配置时可留空"
+              required
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="请输入密码"
             />
           </label>
 

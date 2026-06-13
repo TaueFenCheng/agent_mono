@@ -1,23 +1,21 @@
 import { NextResponse } from "next/server";
-import { createBackendAccessToken } from "../../backend";
+import { login } from "../../backend";
 
 interface LoginPayload {
-  sub?: unknown;
-  name?: unknown;
-  bootstrapKey?: unknown;
+  username?: unknown;
+  password?: unknown;
 }
 
 export async function POST(req: Request) {
   const payload = (await req.json().catch(() => ({}))) as LoginPayload;
-  const sub = typeof payload.sub === "string" ? payload.sub.trim() : "";
-  const name = typeof payload.name === "string" ? payload.name.trim() : "";
-  const bootstrapKey = typeof payload.bootstrapKey === "string" ? payload.bootstrapKey.trim() : "";
+  const username = typeof payload.username === "string" ? payload.username.trim() : "";
+  const password = typeof payload.password === "string" ? payload.password : "";
 
-  if (!sub) {
+  if (!username || !password) {
     return NextResponse.json(
       {
         code: 400,
-        message: "请输入用户标识",
+        message: "请输入用户名和密码",
         data: null
       },
       { status: 400 }
@@ -25,27 +23,14 @@ export async function POST(req: Request) {
   }
 
   try {
-    const token = await createBackendAccessToken(
-      {
-        sub,
-        name: name || sub,
-        roles: ["user"],
-        metadata: {
-          source: "web"
-        }
-      },
-      { bootstrapKey }
-    );
+    const token = await login(username, password);
 
     return NextResponse.json({
       code: 0,
       message: "ok",
       data: {
         ...token,
-        user: {
-          sub,
-          name: name || sub
-        }
+        user: token.user ?? { sub: username, name: username }
       }
     });
   } catch (error) {

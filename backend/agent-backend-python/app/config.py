@@ -19,7 +19,8 @@ class Settings(BaseSettings):
     # ── Auth ──────────────────────────────────────────────────
     JWT_SECRET: str = "change-me-in-production"
     JWT_EXPIRES_IN: str = "7d"
-    AUTH_BOOTSTRAP_KEY: str = ""
+    AUTH_DEFAULT_USERNAME: str = ""
+    AUTH_DEFAULT_PASSWORD: str = ""
 
     # ── Agent ─────────────────────────────────────────────────
     AGENT_PROVIDER: str = "qwen"

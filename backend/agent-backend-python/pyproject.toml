@@ -16,6 +16,7 @@ dependencies = [
   "boto3>=1.37.0,<2.0.0",
   "python-multipart>=0.0.18",
   "chardet>=5.2.0,<6.0.0",
+  "bcrypt>=4.2.0,<5.0.0",
 ]
 
 [dependency-groups]

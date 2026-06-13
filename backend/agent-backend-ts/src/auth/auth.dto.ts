@@ -1,22 +1,37 @@
-import { IsArray, IsNotEmpty, IsObject, IsOptional, IsString, MaxLength } from "class-validator";
+import { IsNotEmpty, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
 
-export class CreateTokenDto {
+export class RegisterDto {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(64)
+  username!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(6)
   @MaxLength(128)
-  sub!: string;
+  password!: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(128)
-  name?: string;
+  displayName?: string;
+}
 
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  roles?: string[];
+export class LoginDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(64)
+  username!: string;
 
-  @IsOptional()
-  @IsObject()
-  metadata?: Record<string, unknown>;
+  @IsString()
+  @IsNotEmpty()
+  password!: string;
+}
+
+export class TokenResponseDto {
+  tokenType: string;
+  accessToken: string;
+  expiresIn: string;
+  user: { sub: string; name: string };
 }

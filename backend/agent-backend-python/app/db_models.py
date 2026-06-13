@@ -5,7 +5,18 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -15,6 +26,7 @@ class Base(DeclarativeBase):
 
 
 # ── Agent Run ─────────────────────────────────────────────────
+
 
 class AgentRunORM(Base):
     __tablename__ = "agent_runs"
@@ -26,12 +38,17 @@ class AgentRunORM(Base):
     provider: Mapped[str] = mapped_column(String, nullable=False, default="qwen")
     model: Mapped[str | None] = mapped_column(String, nullable=True)
     checkpoint_id: Mapped[str | None] = mapped_column(String, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
-    __table_args__ = (Index("idx_agent_runs_thread_created_at", "thread_id", "created_at"),)
+    __table_args__ = (
+        Index("idx_agent_runs_thread_created_at", "thread_id", "created_at"),
+    )
 
 
 # ── Memory Fact ───────────────────────────────────────────────
+
 
 class AgentMemoryFactORM(Base):
     __tablename__ = "agent_memory_facts"
@@ -41,16 +58,24 @@ class AgentMemoryFactORM(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     category: Mapped[str] = mapped_column(String, nullable=False, default="context")
     confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.7)
-    metadata_json: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, nullable=False, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(
+        "metadata", JSONB, nullable=False, default=dict
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
     )
 
     __table_args__ = (Index("idx_agent_memory_thread_id", "thread_id", "created_at"),)
 
 
 # ── Subagent Run ──────────────────────────────────────────────
+
 
 class SubagentRunORM(Base):
     __tablename__ = "subagent_runs"
@@ -60,7 +85,9 @@ class SubagentRunORM(Base):
     prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
     summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
     partial: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
     task_runs: Mapped[list[SubagentTaskRunORM]] = relationship(
         back_populates="subagent_run", cascade="all, delete-orphan"
@@ -71,7 +98,9 @@ class SubagentTaskRunORM(Base):
     __tablename__ = "subagent_task_runs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    run_id: Mapped[str] = mapped_column(String, ForeignKey("subagent_runs.run_id", ondelete="CASCADE"), nullable=False)
+    run_id: Mapped[str] = mapped_column(
+        String, ForeignKey("subagent_runs.run_id", ondelete="CASCADE"), nullable=False
+    )
     task_id: Mapped[str] = mapped_column(String, nullable=False)
     role: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False)
@@ -81,10 +110,14 @@ class SubagentTaskRunORM(Base):
     output: Mapped[str | None] = mapped_column(Text, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     checkpoint_id: Mapped[str | None] = mapped_column(String, nullable=True)
-    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     ended_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     duration_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
     subagent_run: Mapped[SubagentRunORM] = relationship(back_populates="task_runs")
 
@@ -94,7 +127,31 @@ class SubagentTaskRunORM(Base):
     )
 
 
+# ── User ──────────────────────────────────────────────────────
+
+
+class UserORM(Base):
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    username: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String, nullable=False)
+    display_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    __table_args__ = (Index("idx_users_username", "username"),)
+
+
 # ── Model Config ──────────────────────────────────────────────
+
 
 class ModelConfigORM(Base):
     __tablename__ = "model_configs"
@@ -107,9 +164,14 @@ class ModelConfigORM(Base):
     base_url: Mapped[str] = mapped_column(String, nullable=False, default="")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_custom: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
     )
 
     __table_args__ = (
@@ -119,6 +181,7 @@ class ModelConfigORM(Base):
 
 
 # ── Attachment ────────────────────────────────────────────────
+
 
 class AttachmentORM(Base):
     __tablename__ = "attachments"
@@ -137,10 +200,17 @@ class AttachmentORM(Base):
     text_content: Mapped[str | None] = mapped_column(Text, nullable=True)
     thread_id: Mapped[str | None] = mapped_column(String, nullable=True)
     run_id: Mapped[str | None] = mapped_column(String, nullable=True)
-    metadata_json: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, nullable=False, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(
+        "metadata", JSONB, nullable=False, default=dict
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
     )
 
     chunks: Mapped[list[AttachmentChunkORM]] = relationship(
@@ -167,6 +237,8 @@ class AttachmentChunkORM(Base):
     attachment: Mapped[AttachmentORM] = relationship(back_populates="chunks")
 
     __table_args__ = (
-        UniqueConstraint("attachment_id", "chunk_index", name="uq_attachment_chunks_att_idx"),
+        UniqueConstraint(
+            "attachment_id", "chunk_index", name="uq_attachment_chunks_att_idx"
+        ),
         Index("idx_attachment_chunks_attachment_id", "attachment_id"),
     )
