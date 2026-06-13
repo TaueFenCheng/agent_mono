@@ -1,6 +1,6 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import type { McpToolPlugin } from "./types.js";
+import type { McpToolPlugin } from "./types";
 
 function asPlugin(value: unknown): McpToolPlugin | null {
   if (!value || typeof value !== "object") return null;

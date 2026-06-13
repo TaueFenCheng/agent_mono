@@ -1,12 +1,12 @@
 import { AIMessage, HumanMessage, type BaseMessage } from "@langchain/core/messages";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import type { StreamMode } from "@langchain/langgraph";
-import { getLatestCheckpointId, getThread, listThreads } from "./checkpointer.js";
-import { createAgentEventStream, type AgentEventStream } from "./event-stream.js";
-import type { AgentRunEvent } from "./events.js";
-import { getProviderRegistry, type ProviderRegistry } from "./provider-router.js";
-import { SkillRegistry } from "./skills.js";
-import { runSubagents } from "./subagent.js";
+import { getLatestCheckpointId, getThread, listThreads } from "./checkpointer";
+import { createAgentEventStream, type AgentEventStream } from "./event-stream";
+import type { AgentRunEvent } from "./events";
+import { getProviderRegistry, type ProviderRegistry } from "./provider-router";
+import { SkillRegistry } from "./skills";
+import { runSubagents } from "./subagent";
 import type {
   AgentCoreOptions,
   AgentInvokeInput,
@@ -16,8 +16,8 @@ import type {
   McpToolInfo,
   SubagentRunInput,
   SubagentRunOutput
-} from "./types.js";
-import { DefaultAgentToolRegistry, registerBuiltinTools } from "./tools.js";
+} from "./types";
+import { DefaultAgentToolRegistry, registerBuiltinTools } from "./tools";
 
 function extractLastAssistantText(messages: BaseMessage[]): string {
   for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -146,15 +146,14 @@ export class AgentCore {
 
   invokeEventStream(input: AgentInvokeInput): AgentEventStream<AgentInvokeOutput> {
     const stream = createAgentEventStream<AgentInvokeOutput>();
-    const runId = input.runId ?? `${input.threadId}-${Date.now()}`;
+    const { threadId } = input;
+    const runId = input.runId ?? `${threadId}-${Date.now()}`;
+    const now = () => new Date().toISOString();
+    const push = (event: AgentRunEvent) => stream.push(event);
+    const cfg = () => ({ configurable: { thread_id: threadId, run_id: runId } });
 
     void (async () => {
-      stream.push({
-        type: "run_start",
-        runId,
-        threadId: input.threadId,
-        at: new Date().toISOString()
-      });
+      push({ type: "run_start", runId, threadId, at: now() });
 
       try {
         const routed = this.providerRegistry.createRoutedModel({
@@ -164,17 +163,10 @@ export class AgentCore {
           providerConfigs: { ...this.options.providerConfigs, ...input.providerConfigs }
         });
 
-        stream.push({
-          type: "model_selected",
-          provider: routed.provider,
-          model: routed.model,
-          baseUrl: routed.baseUrl,
-          temperature: routed.temperature,
-          at: new Date().toISOString()
-        });
+        push({ type: "model_selected", provider: routed.provider, model: routed.model, baseUrl: routed.baseUrl, temperature: routed.temperature, at: now() });
 
         const tools = await this.registry.buildTools({
-          threadId: input.threadId,
+          threadId,
           runId: input.runId,
           metadata: input.metadata,
           enabledSkills: input.enabledSkills,
@@ -183,17 +175,10 @@ export class AgentCore {
           executionPolicy: this.options.toolExecutionPolicy,
           mcpServices: this.options.mcpServices,
           toolAllowlist: input.toolAllowlist,
-          onToolEvent: (event) => {
-            stream.push({ ...event, at: new Date().toISOString() });
-          }
+          onToolEvent: (event) => push({ ...event, at: now() })
         });
 
-        stream.push({
-          type: "tools_resolved",
-          toolNames: tools.map((item) => item.name),
-          count: tools.length,
-          at: new Date().toISOString()
-        });
+        push({ type: "tools_resolved", toolNames: tools.map((t) => t.name), count: tools.length, at: now() });
 
         const promptSections = [
           this.options.systemPrompt ??
@@ -202,12 +187,12 @@ export class AgentCore {
         ];
 
         if (this.options.memoryStore) {
-          const memoryContext = await this.options.memoryStore.renderPromptContext(input.threadId, { limit: 20 });
-          if (memoryContext) promptSections.push(memoryContext);
+          const ctx = await this.options.memoryStore.renderPromptContext(threadId, { limit: 20 });
+          if (ctx) promptSections.push(ctx);
         }
 
-        const skillContext = this.skillRegistry.renderPromptContext({ enabledNames: input.enabledSkills });
-        if (skillContext) promptSections.push(skillContext);
+        const skillCtx = this.skillRegistry.renderPromptContext({ enabledNames: input.enabledSkills });
+        if (skillCtx) promptSections.push(skillCtx);
 
         const graph = createReactAgent({
           llm: routed.chatModel,
@@ -217,115 +202,58 @@ export class AgentCore {
           name: "intelligent-agent-core"
         });
 
-        // 流式执行：用 streamMode="messages" 获取 token 级输出
-        let fullOutput = "";
         const streamInput = {
           messages: [...(input.messages ?? []), new HumanMessage(input.prompt)]
         };
-        const streamConfig = {
-          configurable: {
-            thread_id: input.threadId,
-            run_id: input.runId ?? input.threadId
-          },
-          streamMode: ["messages"] as StreamMode[],
-          version: "v2"
-        };
+
+        let fullOutput = "";
 
         try {
-          const eventStream = graph.streamEvents(
-            streamInput,
-            streamConfig as any
-          );
+          const eventStream = graph.streamEvents(streamInput, {
+            ...cfg(),
+            streamMode: ["messages"] as StreamMode[],
+            version: "v2"
+          } as any);
 
           for await (const event of eventStream) {
             if (event.event !== "on_chat_model_stream") continue;
             const chunk = event.data?.chunk;
             if (!chunk) continue;
 
-            // 抽取 reasoning / thinking 内容（DeepSeek-R1 等推理模型）
             const reasoningContent = (chunk?.additional_kwargs?.reasoning_content ??
               chunk?.additional_kwargs?.thinking) as string | undefined;
             if (reasoningContent) {
-              stream.push({
-                type: "reasoning_delta",
-                runId,
-                threadId: input.threadId,
-                text: reasoningContent,
-                at: new Date().toISOString()
-              });
+              push({ type: "reasoning_delta", runId, threadId, text: reasoningContent, at: now() });
             }
 
-            // 抽取普通文本 token
-            if (chunk.content) {
-              const token =
-                typeof chunk.content === "string"
-                  ? chunk.content
-                  : "";
-              if (token) {
-                fullOutput += token;
-                stream.push({
-                  type: "text_delta",
-                  runId,
-                  threadId: input.threadId,
-                  text: token,
-                  at: new Date().toISOString()
-                });
-              }
+            const token = typeof chunk.content === "string" ? chunk.content : "";
+            if (token) {
+              fullOutput += token;
+              push({ type: "text_delta", runId, threadId, text: token, at: now() });
             }
           }
-        } catch {
-          // streamEvents error ignored, fallback below
-        }
+        } catch { /* fallback below */ }
 
         if (!fullOutput) {
-          const state = await graph.invoke(streamInput, {
-            configurable: {
-              thread_id: input.threadId,
-              run_id: input.runId ?? input.threadId
-            }
-          });
-          const messages = state.messages as BaseMessage[];
-          fullOutput = extractLastAssistantText(messages);
+          const state = await graph.invoke(streamInput, cfg());
+          fullOutput = extractLastAssistantText(state.messages as BaseMessage[]);
         }
 
-        const finalOutput = fullOutput || "";
-
-        // 获取 checkpointId
+        const output = fullOutput || "";
         let checkpointId: string | null = null;
         if (this.options.checkpointSaver) {
-          try {
-            checkpointId = await getLatestCheckpointId(this.options.checkpointSaver, input.threadId);
-          } catch {
-            // ignore
-          }
+          try { checkpointId = await getLatestCheckpointId(this.options.checkpointSaver, threadId); } catch { /* ignore */ }
         }
 
-        const finalResult: AgentInvokeOutput = {
-          output: finalOutput,
-          provider: routed.provider,
-          messages: [],
-          toolCount: tools.length,
-          checkpointId,
-          threadId: input.threadId
-        };
-
-        stream.complete(finalResult, {
-          type: "run_end",
-          runId,
-          threadId: finalResult.threadId,
-          provider: finalResult.provider,
-          output: finalResult.output,
-          checkpointId: finalResult.checkpointId ?? null,
-          toolCount: finalResult.toolCount,
-          at: new Date().toISOString()
-        });
+        stream.complete(
+          { output, provider: routed.provider, messages: [], toolCount: tools.length, checkpointId, threadId },
+          { type: "run_end", runId, threadId, provider: routed.provider, output, checkpointId, toolCount: tools.length, at: now() }
+        );
       } catch (error) {
         stream.fail(error, {
-          type: "error",
-          runId,
-          threadId: input.threadId,
+          type: "error", runId, threadId,
           message: error instanceof Error ? error.message : String(error),
-          at: new Date().toISOString()
+          at: now()
         });
       }
     })();

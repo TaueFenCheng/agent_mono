@@ -2,7 +2,7 @@ import { AIMessage, HumanMessage, SystemMessage, ToolMessage, type BaseMessage }
 import type { RunnableConfig } from "@langchain/core/runnables";
 import { BaseCheckpointSaver, MemorySaver } from "@langchain/langgraph";
 import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
-import type { ThreadCheckpoint, ThreadDetail, ThreadSummary } from "./types.js";
+import type { ThreadCheckpoint, ThreadDetail, ThreadSummary } from "./types";
 
 export interface CheckpointerManager {
   kind: "memory" | "postgres";

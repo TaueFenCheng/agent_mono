@@ -8,9 +8,9 @@ import type {
   McpToolPlugin,
   McpToolPluginLoadContext,
   ToolInvocationContext
-} from "./types.js";
-import { ToolExecutionCoordinator, wrapToolWithPolicy } from "./utils/tool-execution.js";
-import { toDisplayString } from "./utils/value-utils.js";
+} from "./types";
+import { ToolExecutionCoordinator, wrapToolWithPolicy } from "./utils/tool-execution";
+import { toDisplayString } from "./utils/value-utils";
 
 function createBuiltinTools(options: BuildToolOptions, context: ToolInvocationContext): StructuredToolInterface[] {
   return [

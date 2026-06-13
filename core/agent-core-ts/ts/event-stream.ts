@@ -1,4 +1,4 @@
-import { type AgentRunEvent, AsyncEventQueue } from "./events.js";
+import { type AgentRunEvent, AsyncEventQueue } from "./events";
 
 function normalizeError(error: unknown): Error {
   if (error instanceof Error) return error;

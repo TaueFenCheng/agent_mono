@@ -1,7 +1,7 @@
 import { tool, type StructuredToolInterface } from "@langchain/core/tools";
 import { z } from "zod";
-import type { McpServiceMap, McpToolPlugin, McpToolPluginLoadContext, ToolInvocationContext } from "./types.js";
-import { toDisplayString } from "./utils/value-utils.js";
+import type { McpServiceMap, McpToolPlugin, McpToolPluginLoadContext, ToolInvocationContext } from "./types";
+import { toDisplayString } from "./utils/value-utils";
 
 export interface McpToolDescriptor<TSchema extends z.ZodTypeAny = z.ZodTypeAny> {
   name: string;

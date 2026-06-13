@@ -1,5 +1,5 @@
-import type { AgentRunEvent } from "./events.js";
-import type { AgentInvokeOutput, SubagentFailurePolicy, SubagentResult, SubagentRole, SubagentRunInput, SubagentRunOutput, SubagentTask } from "./types.js";
+import type { AgentRunEvent } from "./events";
+import type { AgentInvokeOutput, SubagentFailurePolicy, SubagentResult, SubagentRole, SubagentRunInput, SubagentRunOutput, SubagentTask } from "./types";
 
 export interface SubagentExecutionOptions {
   defaultMaxConcurrency: number;

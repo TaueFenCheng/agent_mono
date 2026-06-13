@@ -1,6 +1,6 @@
 import { ChatAnthropic } from "@langchain/anthropic";
 import { ChatOpenAI } from "@langchain/openai";
-import type { CreateRoutedModelInput, ProviderRouteConfig, ProviderRuntimeConfig, RoutedModelResult } from "./types.js";
+import type { CreateRoutedModelInput, ProviderRouteConfig, ProviderRuntimeConfig, RoutedModelResult } from "./types";
 
 function buildDefaultProviderConfigs(): Record<string, ProviderRouteConfig> {
   return {

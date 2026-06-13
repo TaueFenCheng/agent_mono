@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
-import type { Skill, SkillRegistryLike } from "./types.js";
+import type { Skill, SkillRegistryLike } from "./types";
 
 const LOCAL_SKILL_DIR_CANDIDATES = ["skills", ".agents/skills", ".claude/skills", ".codex/skills"] as const;
 const HOME_SKILL_DIR_CANDIDATES = [".codex/skills", ".agents/skills", ".claude/skills"] as const;

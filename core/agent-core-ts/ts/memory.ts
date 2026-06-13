@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
-import type { MemoryFact, MemoryStore } from "./types.js";
+import type { MemoryFact, MemoryStore } from "./types";
 
 function nowIso(): string {
   return new Date().toISOString();

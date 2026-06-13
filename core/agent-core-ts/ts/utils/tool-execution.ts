@@ -4,7 +4,7 @@ import type {
   BuildToolOptions,
   LocalToolSpec,
   ToolExecutionMode
-} from "../types.js";
+} from "../types";
 
 async function emitToolEvent(
   emit: BuildToolOptions["onToolEvent"],
