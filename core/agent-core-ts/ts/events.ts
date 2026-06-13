@@ -82,6 +82,13 @@ export type AgentRunEvent =
       at: string;
     }
   | {
+      type: "reasoning_delta";
+      runId: string;
+      threadId: string;
+      text: string;
+      at: string;
+    }
+  | {
       type: "text_delta";
       runId: string;
       threadId: string;

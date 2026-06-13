@@ -238,14 +238,28 @@ export class AgentCore {
           );
 
           for await (const event of eventStream) {
-            // LangGraph streamEvents: on_chat_model_stream 包含 token chunks
-            if (
-              event.event === "on_chat_model_stream" &&
-              event.data?.chunk?.content
-            ) {
+            if (event.event !== "on_chat_model_stream") continue;
+            const chunk = event.data?.chunk;
+            if (!chunk) continue;
+
+            // 抽取 reasoning / thinking 内容（DeepSeek-R1 等推理模型）
+            const reasoningContent = (chunk?.additional_kwargs?.reasoning_content ??
+              chunk?.additional_kwargs?.thinking) as string | undefined;
+            if (reasoningContent) {
+              stream.push({
+                type: "reasoning_delta",
+                runId,
+                threadId: input.threadId,
+                text: reasoningContent,
+                at: new Date().toISOString()
+              });
+            }
+
+            // 抽取普通文本 token
+            if (chunk.content) {
               const token =
-                typeof event.data.chunk.content === "string"
-                  ? event.data.chunk.content
+                typeof chunk.content === "string"
+                  ? chunk.content
                   : "";
               if (token) {
                 fullOutput += token;

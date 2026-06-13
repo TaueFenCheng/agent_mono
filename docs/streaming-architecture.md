@@ -30,7 +30,7 @@ const streamConfig = {
 
 | 事件 | 说明 |
 |------|------|
-| `on_chat_model_stream` | LLM token 级输出，`event.data.chunk.content` 为文本 |
+| `on_chat_model_stream` | LLM token 级输出，`event.data.chunk` 为 `AIMessageChunk` |
 | `on_tool_start` | 工具开始调用 |
 | `on_tool_end` | 工具调用结束 |
 
@@ -85,6 +85,83 @@ if (event.type === "run_end" && event.output) {
 ### 限制
 - 回退到 `graph.invoke` 后无法逐 token 流式输出，前端需等待完整响应
 - 如需真正的 token 级流式 + Anthropic，可考虑直接使用 Anthropic SDK 的原生流式 API，绕过 LangGraph streamEvents
+
+---
+
+## 推理过程输出（reasoning / thinking）
+
+支持将模型的**思考过程**（chain-of-thought）以 `reasoning_delta` 事件独立推送到前端。
+
+### 数据流
+
+```
+模型 API 返回 reasoning_content
+  → LangChain ChatOpenAI additional_kwargs.reasoning_content
+    → AgentCore 推 reasoning_delta 事件
+      → SSE data: {"type":"reasoning_delta","text":"..."}
+        → 前端渲染 【思考过程】...【/思考过程】
+```
+
+### 后端提取（`core/agent-core-ts/ts/agent.ts`）
+
+在 `streamEvents` 循环中，从 `AIMessageChunk` 的 `additional_kwargs` 同时检测两个字段：
+
+| 字段 | 来源 |
+|------|------|
+| `reasoning_content` | DeepSeek-R1 等推理模型 |
+| `thinking` | Anthropic Claude extended thinking 等 |
+
+```typescript
+const reasoningContent = (chunk?.additional_kwargs?.reasoning_content ??
+  chunk?.additional_kwargs?.thinking) as string | undefined;
+if (reasoningContent) {
+  stream.push({ type: "reasoning_delta", runId, threadId, text: reasoningContent, at: ... });
+}
+```
+
+### 事件类型（`core/agent-core-ts/ts/events.ts`）
+
+```typescript
+| {
+    type: "reasoning_delta";
+    runId: string;
+    threadId: string;
+    text: string;
+    at: string;
+  }
+```
+
+### 前端渲染（`frontend/web/app/api/chat/route.ts`）
+
+SSE 处理器管理 `inReasoning` 状态，在 `reasoning_delta` 和 `text_delta` 之间插入标记：
+
+```
+首次 reasoning_delta → 输出 "\n【思考过程】\n"
+后续 reasoning_delta → 直接输出文本
+首次 text_delta      → 输出 "\n【/思考过程】\n\n"，关闭推理状态
+run_end / error      → 若仍处于推理状态，先关闭标记再输出
+```
+
+### SSE 事件格式
+
+```
+data: {"type":"run_start",...}
+
+data: {"type":"reasoning_delta","text":"Let me think about this step by step..."}  ← 推理过程
+
+data: {"type":"reasoning_delta","text":"First, I need to..."}
+
+data: {"type":"text_delta","text":"最终答案"}  ← 正式回答
+
+data: {"type":"run_end",...}
+```
+
+### 注意事项
+
+- 当前 provider `deepseek-v4-flash` 不输出 `reasoning_content`，看不到推理过程
+- 需要推理模型（如 DeepSeek-R1、支持 `reasoning_content` 的模型）才能生效
+- 如果 LangChain `ChatOpenAI` 未正确传递 `reasoning_content`，需自定义 `ChatOpenAI` 子类或在原始 API 响应层处理
+- `Anthropic extended thinking` 需在 `ChatAnthropic` 构造时传入 `thinking` 参数才会启用
 
 ---
 
@@ -486,6 +563,8 @@ data: {"type":"run_start","runId":"nest-...","threadId":"...","at":"..."}
 data: {"type":"model_selected","provider":"anthropic","model":"mimo-v2.5-pro","baseUrl":"https://...","temperature":0.2,"at":"..."}
 
 data: {"type":"tools_resolved","toolNames":["get_time","echo_text",...],"count":7,"at":"..."}
+
+data: {"type":"reasoning_delta","runId":"nest-...","threadId":"...","text":"Let me think...","at":"..."}  ← 推理过程（仅推理模型）
 
 data: {"type":"text_delta","runId":"nest-...","threadId":"...","text":"你好","at":"..."}  ← token 级
 

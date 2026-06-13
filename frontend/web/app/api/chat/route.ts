@@ -80,6 +80,7 @@ export async function POST(req: Request) {
     const stream = new ReadableStream({
       async start(controller) {
         let hasStreamedText = false;
+        let inReasoning = false;
 
         try {
           while (true) {
@@ -104,14 +105,32 @@ export async function POST(req: Request) {
                     message?: string;
                   };
 
-                  if (event.type === "text_delta" && event.text) {
+                  if (event.type === "reasoning_delta" && event.text) {
+                    if (!inReasoning) {
+                      controller.enqueue(encoder.encode("\n【思考过程】\n"));
+                      inReasoning = true;
+                    }
+                    controller.enqueue(encoder.encode(event.text));
+                  } else if (event.type === "text_delta" && event.text) {
+                    if (inReasoning) {
+                      controller.enqueue(encoder.encode("\n【/思考过程】\n\n"));
+                      inReasoning = false;
+                    }
                     hasStreamedText = true;
                     controller.enqueue(encoder.encode(event.text));
                   } else if (event.type === "run_end" && event.output) {
+                    if (inReasoning) {
+                      controller.enqueue(encoder.encode("\n【/思考过程】\n\n"));
+                      inReasoning = false;
+                    }
                     if (!hasStreamedText) {
                       controller.enqueue(encoder.encode(event.output));
                     }
                   } else if (event.type === "error") {
+                    if (inReasoning) {
+                      controller.enqueue(encoder.encode("\n【/思考过程】\n\n"));
+                      inReasoning = false;
+                    }
                     controller.enqueue(
                       encoder.encode(`\n[Error: ${event.message}]`)
                     );
