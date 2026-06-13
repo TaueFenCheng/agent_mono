@@ -18,6 +18,8 @@ import {
   registerBuiltinTools
 } from "@intelligent-agent/agent-core";
 import { PrismaMemoryStore } from "../infra/prisma-memory.store.js";
+import { z } from "zod";
+import path from "path";
 
 export interface AgentRuntime {
   core: AgentCore;
@@ -57,6 +59,106 @@ async function createCore(prisma: PrismaClient): Promise<AgentRuntime> {
   for (const plugin of mcpPlugins) {
     registry.useMcpPlugin(plugin);
   }
+
+  // ── 文件系统和命令执行工具 ──
+  registry.registerLocalTool({
+    name: "read_file",
+    description: "Read the full content of a file by path. Supports optional line offset.",
+    schema: z.object({
+      path: z.string().describe("File path (absolute or relative)"),
+      offset: z.number().optional().describe("Starting line number (0-based)"),
+      limit: z.number().optional().describe("Number of lines to read"),
+    }),
+    executionMode: "sequential",
+    timeoutMs: 10000,
+    invoke: async (input) => {
+      const fs = await import("fs/promises");
+      const filePath = path.resolve(input.path);
+      const content = await fs.readFile(filePath, "utf-8");
+      if (input.offset !== undefined || input.limit !== undefined) {
+        const lines = content.split("\n");
+        const start = input.offset ?? 0;
+        const end = input.limit ? start + input.limit : lines.length;
+        return lines.slice(start, end).join("\n");
+      }
+      return content;
+    },
+  });
+
+  registry.registerLocalTool({
+    name: "write_file",
+    description: "Write content to a file. Creates parent directories if needed.",
+    schema: z.object({
+      path: z.string().describe("File path"),
+      content: z.string().describe("Content to write"),
+    }),
+    executionMode: "sequential",
+    timeoutMs: 10000,
+    invoke: async (input) => {
+      const fs = await import("fs/promises");
+      const filePath = path.resolve(input.path);
+      await fs.mkdir(path.dirname(filePath), { recursive: true });
+      await fs.writeFile(filePath, input.content, "utf-8");
+      const stat = await fs.stat(filePath);
+      return `Written ${filePath} (${stat.size} bytes)`;
+    },
+  });
+
+  registry.registerLocalTool({
+    name: "execute_command",
+    description: "Execute a shell command and return stdout/stderr.",
+    schema: z.object({
+      command: z.string().describe("Shell command to execute"),
+      workdir: z.string().optional().describe("Working directory"),
+      timeout: z.number().optional().default(30000).describe("Timeout in ms"),
+    }),
+    executionMode: "sequential",
+    timeoutMs: 60000,
+    invoke: async (input) => {
+      const { execSync } = await import("child_process");
+      try {
+        const output = execSync(input.command, {
+          cwd: input.workdir ?? process.cwd(),
+          timeout: input.timeout ?? 30000,
+          encoding: "utf-8",
+          maxBuffer: 10 * 1024 * 1024,
+        });
+        return output || "(command completed with no output)";
+      } catch (error: unknown) {
+        const err = error as { stdout?: string; stderr?: string; message?: string };
+        if (err.stdout) return err.stdout;
+        if (err.stderr) return `Error: ${err.stderr}`;
+        return `Execution failed: ${err.message ?? String(error)}`;
+      }
+    },
+  });
+
+  registry.registerLocalTool({
+    name: "list_files",
+    description: "List files and directories in a given path. Supports glob pattern.",
+    schema: z.object({
+      path: z.string().describe("Directory path"),
+      pattern: z.string().optional().describe("Glob pattern filter, e.g. *.ts"),
+    }),
+    executionMode: "sequential",
+    timeoutMs: 10000,
+    invoke: async (input) => {
+      const fs = await import("fs/promises");
+      const dirPath = path.resolve(input.path);
+      const entries = await fs.readdir(dirPath, { withFileTypes: true });
+      const results = [];
+      for (const entry of entries) {
+        const isDir = entry.isDirectory();
+        const size = isDir ? null : (await fs.stat(path.join(dirPath, entry.name))).size;
+        if (input.pattern) {
+          const re = new RegExp("^" + input.pattern.replace(/\*/g, ".*").replace(/\?/g, ".") + "$");
+          if (!re.test(entry.name)) continue;
+        }
+        results.push({ name: entry.name, type: isDir ? "dir" : "file", size });
+      }
+      return results;
+    },
+  });
 
   let checkpointerManager: CheckpointerManager;
   try {
