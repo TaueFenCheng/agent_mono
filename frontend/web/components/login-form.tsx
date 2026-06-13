@@ -97,6 +97,7 @@ export function LoginForm() {
               onChange={(event) => setPassword(event.target.value)}
               placeholder="请输入密码"
             />
+            <p className="text-muted-foreground/60 text-xs">测试账号: admin / admin123</p>
           </label>
 
           {error ? (
