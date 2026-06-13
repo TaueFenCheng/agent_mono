@@ -79,6 +79,8 @@ export async function POST(req: Request) {
 
     const stream = new ReadableStream({
       async start(controller) {
+        let hasStreamedText = false;
+
         try {
           while (true) {
             const { done, value } = await reader.read();
@@ -103,11 +105,12 @@ export async function POST(req: Request) {
                   };
 
                   if (event.type === "text_delta" && event.text) {
-                    // 逐 token 输出
+                    hasStreamedText = true;
                     controller.enqueue(encoder.encode(event.text));
                   } else if (event.type === "run_end" && event.output) {
-                    // run_end 时如果没收到过 text_delta，用 output 兜底
-                    // 已经流式输出过了就不再重复
+                    if (!hasStreamedText) {
+                      controller.enqueue(encoder.encode(event.output));
+                    }
                   } else if (event.type === "error") {
                     controller.enqueue(
                       encoder.encode(`\n[Error: ${event.message}]`)

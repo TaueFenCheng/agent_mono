@@ -260,8 +260,16 @@ export class AgentCore {
             }
           }
         } catch {
-          // streamEvents 不可用时回退到非流式
-          const state = await graph.invoke(streamInput, streamConfig);
+          // streamEvents error ignored, fallback below
+        }
+
+        if (!fullOutput) {
+          const state = await graph.invoke(streamInput, {
+            configurable: {
+              thread_id: input.threadId,
+              run_id: input.runId ?? input.threadId
+            }
+          });
           const messages = state.messages as BaseMessage[];
           fullOutput = extractLastAssistantText(messages);
         }
