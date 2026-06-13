@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Prisma } from "@prisma/client";
 import { createHash, randomUUID } from "node:crypto";
@@ -39,7 +39,7 @@ export class AttachmentService {
     private readonly db: DatabaseService,
     private readonly queue: AgentQueueService,
     private readonly storage: AttachmentStorageService,
-    private readonly configService: ConfigService
+    @Inject(ConfigService) private readonly configService: ConfigService
   ) {
     this.maxUploadMb = Math.max(1, this.configService.get<number>("attachment.maxUploadMb") ?? 25);
     this.chunkMaxChars = Math.max(200, this.configService.get<number>("attachment.chunkMaxChars") ?? 1200);

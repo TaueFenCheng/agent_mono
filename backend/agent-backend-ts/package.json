@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch --loader ts-node/esm src/main.ts",
+    "dev": "tsx watch src/main.ts",
     "prisma:generate": "prisma generate",
-    "dev:debugger": "node --inspect --watch --loader ts-node/esm src/main.ts",
+    "dev:debugger": "tsx --inspect watch src/main.ts",
     "prisma:push": "prisma db push",
     "build": "pnpm run prisma:generate && tsc -p tsconfig.json",
     "start": "node dist/main.js",
