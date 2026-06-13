@@ -17,15 +17,22 @@ export function getBearerTokenFromRequest(req: Request) {
 export async function login(
   username: string,
   password: string,
-  options: { baseUrl?: string } = {}
+  options: { baseUrl?: string; encryptedPassword?: string } = {}
 ) {
   const baseUrl = options.baseUrl ?? getBackendBaseUrl();
   const headers: Record<string, string> = { "content-type": "application/json" };
 
+  const body: Record<string, string> = { username };
+  if (options.encryptedPassword) {
+    body.encryptedPassword = options.encryptedPassword;
+  } else {
+    body.password = password;
+  }
+
   const response = await fetch(`${baseUrl}/v1/auth/login`, {
     method: "POST",
     headers,
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify(body)
   });
 
   const result = (await response.json().catch(() => null)) as {

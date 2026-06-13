@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/main.ts",
+    "dev": "pnpm prisma:generate && tsc-watch --onSuccess \"node dist/main.js\"",
     "prisma:generate": "prisma generate",
     "dev:debugger": "tsx --inspect watch src/main.ts",
     "prisma:push": "prisma db push",

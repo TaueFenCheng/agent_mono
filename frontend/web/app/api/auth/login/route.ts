@@ -4,14 +4,16 @@ import { login } from "../../backend";
 interface LoginPayload {
   username?: unknown;
   password?: unknown;
+  encryptedPassword?: unknown;
 }
 
 export async function POST(req: Request) {
   const payload = (await req.json().catch(() => ({}))) as LoginPayload;
   const username = typeof payload.username === "string" ? payload.username.trim() : "";
   const password = typeof payload.password === "string" ? payload.password : "";
+  const encryptedPassword = typeof payload.encryptedPassword === "string" ? payload.encryptedPassword : "";
 
-  if (!username || !password) {
+  if (!username || (!password && !encryptedPassword)) {
     return NextResponse.json(
       {
         code: 400,
@@ -23,7 +25,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const token = await login(username, password);
+    const token = await login(username, password, { encryptedPassword: encryptedPassword || undefined });
 
     return NextResponse.json({
       code: 0,

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { LogIn } from "lucide-react";
 import { Button, Card, CardContent, CardHeader, CardTitle, Input } from "@intelligent-agent/ui";
 import { getStoredAccessToken, storeAuthSession } from "@/components/auth-storage";
+import { encryptPassword } from "@/lib/crypto";
 
 interface LoginResponse {
   code: number | string;
@@ -39,10 +40,19 @@ export function LoginForm() {
     setIsSubmitting(true);
 
     try {
+      const publicKeyRes = await fetch("/api/auth/public-key");
+      const publicKeyData = await publicKeyRes.json();
+      const publicKeyPem = publicKeyData?.data?.publicKey;
+      if (!publicKeyPem) {
+        throw new Error("无法获取加密公钥");
+      }
+
+      const encryptedPassword = await encryptPassword(publicKeyPem, password);
+
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, encryptedPassword })
       });
       const result = (await response.json()) as LoginResponse;
 
