@@ -107,7 +107,7 @@ function upsertSession(list: AgentWorkspaceSession[], target: AgentWorkspaceSess
 }
 
 export function AgentWorkspace({
-  title = "intelligentAgent Console",
+  title = "IntelligentAgent Console",
   description = "左侧会话历史，右侧对话面板",
   placeholder = "输入你的任务，按 Enter 发送（Shift+Enter 换行）",
   initialPrompt = "",

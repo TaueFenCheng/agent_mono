@@ -1,4 +1,4 @@
-export const brandName = "intelligentAgent";
+export const brandName = "IntelligentAgent";
 
 export { AgentWorkspace } from "./components/agent-workspace";
 export type { AgentWorkspaceProps, AgentWorkspaceSendInput, ModelOption } from "./components/agent-workspace";

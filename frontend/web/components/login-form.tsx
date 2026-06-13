@@ -72,7 +72,7 @@ export function LoginForm() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
-        <CardTitle>登录 intelligentAgent</CardTitle>
+        <CardTitle>登录 IntelligentAgent</CardTitle>
       </CardHeader>
       <CardContent>
         <form className="space-y-4" onSubmit={handleSubmit}>
