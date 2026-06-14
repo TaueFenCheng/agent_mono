@@ -35,6 +35,18 @@ class AttachmentChunkRecord:
     token_count: int
 
 
+@dataclass(slots=True)
+class ModelRuntimeConfig:
+    """运行时模型配置，既可来自 `model_configs` 表，也可来自环境变量兜底。"""
+
+    provider: str
+    model: str
+    api_key: str
+    base_url: str
+    source: str
+    name: str | None = None
+
+
 class RagService:
     """RAG 核心服务，负责协调 pgvector 存储、检索和基于上下文的回答生成。"""
 
@@ -373,24 +385,36 @@ class RagService:
         )
 
     def _embed_model(self):
-        """创建 embedding 客户端，用于文本向量化。"""
+        """创建 embedding 客户端，用于文本向量化。
+
+        优先从数据库读取指定的 embedding 模型配置；
+        如果没有指定，尝试退回激活配置；
+        最后再使用环境变量兜底。
+        """
         from llama_index.embeddings.openai import OpenAIEmbedding
 
+        runtime = self._resolve_embed_runtime_config()
         return OpenAIEmbedding(
-            model=self.settings.RAG_EMBED_MODEL,
+            model=runtime.model,
             dimensions=self.settings.RAG_EMBED_DIM,
-            api_key=self.settings.RAG_OPENAI_API_KEY,
-            api_base=self.settings.RAG_OPENAI_BASE_URL or None,
+            api_key=runtime.api_key,
+            api_base=runtime.base_url or None,
         )
 
     def _llm(self):
-        """创建问答阶段使用的大模型客户端。"""
+        """创建问答阶段使用的大模型客户端。
+
+        优先从数据库读取指定的聊天模型配置；
+        如果没有指定，尝试退回激活配置；
+        最后再使用环境变量兜底。
+        """
         from llama_index.llms.openai import OpenAI
 
+        runtime = self._resolve_chat_runtime_config()
         return OpenAI(
-            model=self.settings.RAG_CHAT_MODEL,
-            api_key=self.settings.RAG_OPENAI_API_KEY,
-            api_base=self.settings.RAG_OPENAI_BASE_URL or None,
+            model=runtime.model,
+            api_key=runtime.api_key,
+            api_base=runtime.base_url or None,
         )
 
     def _text_node_cls(self):
@@ -398,3 +422,130 @@ class RagService:
         from llama_index.core.schema import TextNode
 
         return TextNode
+
+    def _resolve_chat_runtime_config(self) -> ModelRuntimeConfig:
+        """解析聊天模型配置。
+
+        读取顺序：
+        - `RAG_CHAT_MODEL_CONFIG_NAME` 指定的数据库配置
+        - `model_configs` 表中的激活配置
+        - 环境变量兜底
+        """
+        return self._resolve_runtime_config(
+            configured_name=self.settings.RAG_CHAT_MODEL_CONFIG_NAME,
+            env_model=self.settings.RAG_CHAT_MODEL,
+            purpose="chat",
+        )
+
+    def _resolve_embed_runtime_config(self) -> ModelRuntimeConfig:
+        """解析 embedding 模型配置。
+
+        读取顺序：
+        - `RAG_EMBED_MODEL_CONFIG_NAME` 指定的数据库配置
+        - `model_configs` 表中的激活配置
+        - 环境变量兜底
+        """
+        return self._resolve_runtime_config(
+            configured_name=self.settings.RAG_EMBED_MODEL_CONFIG_NAME,
+            env_model=self.settings.RAG_EMBED_MODEL,
+            purpose="embedding",
+        )
+
+    def _resolve_runtime_config(
+        self,
+        *,
+        configured_name: str,
+        env_model: str,
+        purpose: str,
+    ) -> ModelRuntimeConfig:
+        """统一解析运行时模型配置。
+
+        这个方法负责把“数据库配置优先、环境变量兜底”的规则收口到一处，
+        避免聊天模型和 embedding 模型各自维护一套判断逻辑。
+        """
+        name = configured_name.strip()
+        if name:
+            row = self._fetch_model_config_by_name(name)
+            if row is None:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f'Configured {purpose} model config "{name}" was not found',
+                )
+            return self._to_runtime_config(row, source="model_configs:name")
+
+        active = self._fetch_active_model_config()
+        if active is not None:
+            model = active["model"]
+            if purpose == "embedding" and env_model.strip():
+                model = env_model.strip()
+            return ModelRuntimeConfig(
+                provider=active["provider"],
+                model=model,
+                api_key=active["api_key"],
+                base_url=active["base_url"],
+                source="model_configs:active",
+                name=active["name"],
+            )
+
+        return ModelRuntimeConfig(
+            provider="openai",
+            model=env_model.strip(),
+            api_key=self.settings.RAG_OPENAI_API_KEY,
+            base_url=self.settings.RAG_OPENAI_BASE_URL,
+            source="env",
+            name=None,
+        )
+
+    def _fetch_model_config_by_name(self, name: str) -> dict[str, Any] | None:
+        """按配置名从 `model_configs` 表读取模型配置。"""
+        sql = """
+            SELECT name, provider, model, api_key, base_url, is_active
+            FROM model_configs
+            WHERE name = %s
+            ORDER BY is_active DESC, created_at DESC
+            LIMIT 1
+        """
+        with psycopg.connect(self.settings.postgres_sync_dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql, (name,))
+                row = cur.fetchone()
+        return self._map_model_config_row(row)
+
+    def _fetch_active_model_config(self) -> dict[str, Any] | None:
+        """读取当前激活的模型配置。"""
+        sql = """
+            SELECT name, provider, model, api_key, base_url, is_active
+            FROM model_configs
+            WHERE is_active = TRUE
+            ORDER BY created_at DESC
+            LIMIT 1
+        """
+        with psycopg.connect(self.settings.postgres_sync_dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql)
+                row = cur.fetchone()
+        return self._map_model_config_row(row)
+
+    def _map_model_config_row(self, row: Any) -> dict[str, Any] | None:
+        """把数据库查询结果转换成统一字典结构。"""
+        if row is None:
+            return None
+        return {
+            "name": row[0],
+            "provider": row[1],
+            "model": row[2],
+            "api_key": row[3],
+            "base_url": row[4],
+            "is_active": row[5],
+        }
+
+    def _to_runtime_config(self, row: dict[str, Any], *, source: str) -> ModelRuntimeConfig:
+        """把数据库行结构转换成运行时模型配置对象。"""
+        return ModelRuntimeConfig(
+            provider=str(row["provider"]),
+            model=str(row["model"]),
+            api_key=str(row["api_key"] or ""),
+            base_url=str(row["base_url"] or ""),
+            source=source,
+            name=str(row["name"]),
+        )

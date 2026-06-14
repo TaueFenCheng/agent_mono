@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     RAG_SIMILARITY_TOP_K: int = 5
     RAG_OVERFETCH_FACTOR: int = 4
 
+    RAG_CHAT_MODEL_CONFIG_NAME: str = ""
+    RAG_EMBED_MODEL_CONFIG_NAME: str = ""
     RAG_OPENAI_API_KEY: str = ""
     RAG_OPENAI_BASE_URL: str = ""
     RAG_EMBED_MODEL: str = "text-embedding-3-small"

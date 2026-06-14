@@ -51,6 +51,8 @@ POSTGRES_DB=intelligent_agent
 LlamaIndex 依赖的模型配置：
 
 ```bash
+RAG_CHAT_MODEL_CONFIG_NAME=
+RAG_EMBED_MODEL_CONFIG_NAME=
 RAG_OPENAI_API_KEY=your-key
 RAG_OPENAI_BASE_URL=
 RAG_EMBED_MODEL=text-embedding-3-small
@@ -59,7 +61,14 @@ RAG_EMBED_DIM=1536
 PORT=8082
 ```
 
-如果你使用兼容 OpenAI 的模型网关，可以只改 `RAG_OPENAI_BASE_URL`、`RAG_OPENAI_API_KEY`、`RAG_EMBED_MODEL`、`RAG_CHAT_MODEL`。
+模型读取规则：
+
+- 优先读取 `model_configs` 表
+- 如果设置了 `RAG_CHAT_MODEL_CONFIG_NAME` / `RAG_EMBED_MODEL_CONFIG_NAME`，优先按配置名读取
+- 如果没有设置配置名，退回数据库里的激活配置
+- 如果数据库里没有可用配置，再退回 `RAG_OPENAI_BASE_URL`、`RAG_OPENAI_API_KEY`、`RAG_EMBED_MODEL`、`RAG_CHAT_MODEL`
+
+如果你使用兼容 OpenAI 的模型网关，可以只改 `RAG_OPENAI_BASE_URL`、`RAG_OPENAI_API_KEY`、`RAG_EMBED_MODEL`、`RAG_CHAT_MODEL` 作为兜底配置。
 
 ## 启动
 
