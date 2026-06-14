@@ -8,6 +8,7 @@ import { AgentQueueService } from "../agent/agent-queue.service.js";
 import { AttachmentStorageService } from "./attachment.storage.js";
 import { chunkText, parseAttachment } from "./attachment.parser.js";
 import type { UploadAttachmentDto } from "./attachment.dto.js";
+import { AttachmentTaskDispatcherService } from "./attachment-task-dispatcher.service.js";
 
 function normalizeMeta(metadata?: string): Record<string, unknown> {
   if (!metadata || !metadata.trim()) return {};
@@ -39,6 +40,7 @@ export class AttachmentService {
     private readonly db: DatabaseService,
     private readonly queue: AgentQueueService,
     private readonly storage: AttachmentStorageService,
+    private readonly taskDispatcher: AttachmentTaskDispatcherService,
     @Inject(ConfigService) private readonly configService: ConfigService
   ) {
     this.maxUploadMb = Math.max(1, this.configService.get<number>("attachment.maxUploadMb") ?? 25);
@@ -182,6 +184,8 @@ export class AttachmentService {
           });
         }
       });
+
+      await this.taskDispatcher.onAttachmentProcessed(attachmentId);
     } catch (error) {
       await prisma.attachment.update({
         where: { id: attachmentId },

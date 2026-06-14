@@ -19,6 +19,7 @@ import redisConfig from "./config/redis.config.js";
 import authConfig from "./config/auth.config.js";
 import objectStorageConfig from "./config/object-storage.config.js";
 import attachmentConfig from "./config/attachment.config.js";
+import ragConfig from "./config/rag.config.js";
 import { validateEnv } from "./config/env.validation.js";
 import { AuthController } from "./auth/auth.controller.js";
 import { AuthService } from "./auth/auth.service.js";
@@ -26,13 +27,14 @@ import { JwtAuthGuard } from "./auth/jwt-auth.guard.js";
 import { DatabaseModule } from "./infra/database.module.js";
 import { RedisModule } from "./infra/redis.module.js";
 import { ObjectStorageModule } from "./attachment/object-storage.module.js";
+import { AttachmentTaskDispatcherService } from "./attachment/attachment-task-dispatcher.service.js";
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
-      load: [postgresConfig, redisConfig, authConfig, objectStorageConfig, attachmentConfig],
+      load: [postgresConfig, redisConfig, authConfig, objectStorageConfig, attachmentConfig, ragConfig],
       validate: validateEnv
     }),
     DatabaseModule.forRootAsync(),
@@ -60,6 +62,7 @@ import { ObjectStorageModule } from "./attachment/object-storage.module.js";
     AgentService,
     SubagentService,
     AttachmentService,
+    AttachmentTaskDispatcherService,
     ModelConfigService,
     AgentQueueService,
     AgentQueueProcessor

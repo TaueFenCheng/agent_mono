@@ -206,10 +206,11 @@ class RagService:
                 f"[{index}] documentId={hit.documentId} fileName={hit.fileName or '-'} "
                 f"chunkIndex={hit.chunkIndex if hit.chunkIndex is not None else '-'}\n{hit.text}"
             )
+        context_text = "\n\n".join(context_blocks)
         prompt = (
             f"{request.systemPrompt}\n\n"
             f"Question:\n{query}\n\n"
-            f"Context:\n{'\n\n'.join(context_blocks)}\n\n"
+            f"Context:\n{context_text}\n\n"
             "Write a concise answer. Cite the supporting chunk numbers in square brackets when applicable."
         )
         completion = self._llm(chat_runtime).complete(prompt)

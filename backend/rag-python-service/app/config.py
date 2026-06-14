@@ -30,9 +30,9 @@ class Settings(BaseSettings):
     @property
     def postgres_async_dsn(self) -> str:
         if self.POSTGRES_URL.strip():
-            return self.POSTGRES_URL.strip()
+            return self._to_async_dsn(self.POSTGRES_URL.strip())
         if self.DATABASE_URL.strip():
-            return self.DATABASE_URL.strip()
+            return self._to_async_dsn(self.DATABASE_URL.strip())
         return (
             f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
@@ -48,6 +48,17 @@ class Settings(BaseSettings):
             f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
+
+    def _to_async_dsn(self, value: str) -> str:
+        if "+asyncpg" in value:
+            return value
+        if "+psycopg" in value:
+            return value.replace("+psycopg", "+asyncpg")
+        if value.startswith("postgresql://"):
+            return value.replace("postgresql://", "postgresql+asyncpg://", 1)
+        if value.startswith("postgres://"):
+            return value.replace("postgres://", "postgresql+asyncpg://", 1)
+        return value
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 

@@ -65,5 +65,22 @@ export function validateEnv(rawEnv: Record<string, unknown>): Record<string, unk
     }
   }
 
+  const ragServiceUrl = String(env.RAG_SERVICE_URL ?? "").trim();
+  if (ragServiceUrl) {
+    try {
+      new URL(ragServiceUrl);
+    } catch {
+      throw new Error("Invalid RAG_SERVICE_URL: must be a valid URL");
+    }
+  }
+
+  const ragTimeoutRaw = String(env.RAG_REQUEST_TIMEOUT_MS ?? "").trim();
+  if (ragTimeoutRaw) {
+    const timeout = Number(ragTimeoutRaw);
+    if (!Number.isInteger(timeout) || timeout <= 0) {
+      throw new Error("Invalid RAG_REQUEST_TIMEOUT_MS: must be a positive integer");
+    }
+  }
+
   return env;
 }

@@ -136,4 +136,5 @@ curl -X POST http://127.0.0.1:8082/v1/rag/query \
 - pgvector 表由 LlamaIndex `PGVectorStore` 管理，服务启动时会确保 `vector` extension 存在
 - 数据库访问统一下沉到 `app/persistence/session.py` 和 `app/repositories/*`
 - `RagService` 只负责编排 repository、模型配置解析、LlamaIndex 索引和检索流程
-- 当前没有自动监听附件上传事件；附件处理完成后，需要显式调用 `/v1/rag/index/attachments`
+- 当前已经支持由主后端在附件处理完成后自动触发 `/v1/rag/index/attachments`
+- 自动触发链路说明见 [`/Users/tangjiaqiang/code/tangAgent/backend/rag-python-service/UPLOAD_TASK_FLOW.md`](</Users/tangjiaqiang/code/tangAgent/backend/rag-python-service/UPLOAD_TASK_FLOW.md>)
