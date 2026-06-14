@@ -4,13 +4,13 @@ from app.main import app
 
 
 class _FakeRagService:
-    def index_text_documents(self, request_body):
+    async def index_text_documents(self, request_body):
         return type("Resp", (), {"model_dump": lambda self: {"indexedCount": len(request_body.documents), "items": []}})()
 
-    def index_attachments(self, request_body):
+    async def index_attachments(self, request_body):
         return type("Resp", (), {"model_dump": lambda self: {"indexedCount": len(request_body.attachmentIds), "items": []}})()
 
-    def semantic_search(self, request_body):
+    async def semantic_search(self, request_body):
         return type(
             "Resp",
             (),
@@ -35,7 +35,7 @@ class _FakeRagService:
             },
         )()
 
-    def answer(self, request_body):
+    async def answer(self, request_body):
         return type(
             "Resp",
             (),

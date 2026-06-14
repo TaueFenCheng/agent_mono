@@ -4,7 +4,7 @@ from app.main import app
 
 
 class _FakeRagService:
-    def health_payload(self):
+    async def health_payload(self):
         return {
             "status": "ok",
             "postgres": "up",

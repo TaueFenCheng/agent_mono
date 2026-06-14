@@ -11,6 +11,9 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
+from .persistence.session import create_db_engine, create_session_factory, ensure_vector_extension
+from .repositories.attachment_repository import AttachmentRepository
+from .repositories.model_config_repository import ModelConfigRepository
 from .responses import http_exception_handler, unhandled_exception_handler
 from .routers.health import router as health_router
 from .routers.rag import router as rag_router
@@ -24,13 +27,24 @@ logger = logging.getLogger("rag-python-service")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    
     rag_service = getattr(app.state, "rag_service", None)
     if rag_service is None:
-        rag_service = RagService(settings)
-        rag_service.ensure_ready()
+        engine = create_db_engine(settings)
+        session_factory = create_session_factory(engine)
+        await ensure_vector_extension(engine)
+        app.state.db_engine = engine
+        app.state.db_session_factory = session_factory
+        rag_service = RagService(
+            settings=settings,
+            session_factory=session_factory,
+            model_config_repository=ModelConfigRepository(),
+            attachment_repository=AttachmentRepository(),
+        )
         app.state.rag_service = rag_service
     yield
+    engine = getattr(app.state, "db_engine", None)
+    if engine is not None:
+        await engine.dispose()
 
 
 app = FastAPI(
