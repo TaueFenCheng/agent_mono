@@ -10,6 +10,7 @@
     "dev:cli": "pnpm --filter @intelligent-agent/cli dev",
     "dev:api:ts": "pnpm --filter @intelligent-agent/agent-backend-ts dev",
     "dev:api:python": "cd backend/agent-backend-python && uv run uvicorn app.main:app --reload --port 8081",
+    "dev:api:rag": "cd backend/rag-python-service && uv run uvicorn app.main:app --reload --port 8082",
     "build": "pnpm --filter @intelligent-agent/core-types build && pnpm --filter @intelligent-agent/agent-core build && pnpm --filter @intelligent-agent/sdk-ts build && pnpm --filter @intelligent-agent/ui build && pnpm --filter @intelligent-agent/agent-backend-ts build && pnpm --filter @intelligent-agent/web build && pnpm --filter @intelligent-agent/cli build && pnpm --filter @intelligent-agent/desktop-electron build",
     "build:desktop:tauri": "pnpm --filter @intelligent-agent/desktop build",
     "test": "pnpm -r test",
