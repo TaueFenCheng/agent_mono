@@ -24,6 +24,7 @@ logger = logging.getLogger("rag-python-service")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    
     rag_service = getattr(app.state, "rag_service", None)
     if rag_service is None:
         rag_service = RagService(settings)

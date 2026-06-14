@@ -2,10 +2,6 @@
 
 独立 Python 微服务，使用 `FastAPI + LlamaIndex + pgvector` 实现 RAG，不耦合现有 `agent-backend-python`。
 
-补充说明文档：
-- [`LIFESPAN.md`](</Users/tangjiaqiang/code/tangAgent/backend/rag-python-service/LIFESPAN.md>)：解释 `lifespan` 和 `app.state` 的用法
-- [`ARCHITECTURE.md`](</Users/tangjiaqiang/code/tangAgent/backend/rag-python-service/ARCHITECTURE.md>)：解释 `main.py / routers / services / models` 的代码分层
-
 ## 能力
 
 - `POST /v1/rag/index`

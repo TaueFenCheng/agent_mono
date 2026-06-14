@@ -15,3 +15,6 @@ docs/streaming-architecture.md
 *.tsbuildinfo
 docs/public-access.md
 keys/
+backend/rag-python-service/ARCHITECTURE.md
+backend/rag-python-service/ASYNC_CONTEXTMANAGER.md
+backend/rag-python-service/LIFESPAN.md
