@@ -50,6 +50,21 @@ Browser / Electron / CLI
 → Next.js ReadableStream → 浏览器渲染
 ```
 
+### Attachment And RAG Pipeline
+
+```
+用户上传附件
+  → Next.js /api/attachments
+  → NestJS /v1/attachments
+  → MinIO 落盘
+  → BullMQ attachment-process
+  → AttachmentService.processAttachmentJob()
+    → 文本抽取 / OCR / chunk 入库
+    → AttachmentTaskDispatcherService
+      → rag-python-service /v1/rag/index/attachments
+        → LlamaIndex + pgvector 建索引
+```
+
 ### Event Types
 
 | 事件 | 说明 |
@@ -109,6 +124,7 @@ intelligentAgent/
 │   ├── web/                       # Next.js 15 Web 控制台（主力）
 │   │   ├── app/
 │   │   │   ├── api/chat/route.ts  # 流式转发代理
+│   │   │   ├── api/attachments/   # 附件上传与状态代理
 │   │   │   ├── api/auth/          # 认证 API
 │   │   │   └── (routes)/          # 页面路由
 │   │   ├── components/            # UI 组件（login-form, chat 等）

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { LogOut, Settings } from "lucide-react";
 import { Button } from "@intelligent-agent/ui";
 import { AgentWorkspaceWrapper } from "@/components/agent-workspace-wrapper";
+import { AttachmentUploadPanel } from "@/components/attachment-upload-panel";
 import { clearAuthSession, getStoredAccessToken, getStoredUser, type StoredUser } from "@/components/auth-storage";
 
 export function AgentPageShell() {
@@ -12,6 +13,7 @@ export function AgentPageShell() {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [user, setUser] = useState<StoredUser | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [threadId] = useState<string>(() => `web-${Date.now()}`);
 
   useEffect(() => {
     const token = getStoredAccessToken();
@@ -61,8 +63,9 @@ export function AgentPageShell() {
           </Button>
         </div>
       </header>
-      <div className="p-4">
-        <AgentWorkspaceWrapper accessToken={accessToken} onUnauthorized={handleLogout} />
+      <div className="space-y-4 p-4">
+        <AttachmentUploadPanel accessToken={accessToken} threadId={threadId} onUnauthorized={handleLogout} />
+        <AgentWorkspaceWrapper accessToken={accessToken} threadId={threadId} onUnauthorized={handleLogout} />
       </div>
     </main>
   );

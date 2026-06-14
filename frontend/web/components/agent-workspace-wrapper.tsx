@@ -16,6 +16,7 @@ interface ModelConfig {
 
 interface AgentWorkspaceWrapperProps {
   accessToken: string;
+  threadId: string;
   onUnauthorized?: () => void;
 }
 
@@ -31,11 +32,10 @@ function extractTextContent(message: UIMessage): string {
  * 客户端包装组件
  * 使用 Vercel AI SDK v6 useChat hook 管理对话状态
  */
-export function AgentWorkspaceWrapper({ accessToken, onUnauthorized }: AgentWorkspaceWrapperProps) {
+export function AgentWorkspaceWrapper({ accessToken, threadId, onUnauthorized }: AgentWorkspaceWrapperProps) {
   const [modelOptions, setModelOptions] = useState<ModelOption[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string>("");
   const [inputValue, setInputValue] = useState<string>("");
-  const [threadId] = useState<string>(() => `web-${Date.now()}`);
 
   const selectedModel = modelOptions.find((m) => m.id === selectedModelId);
 

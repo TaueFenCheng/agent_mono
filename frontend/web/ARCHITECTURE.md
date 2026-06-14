@@ -26,6 +26,12 @@ frontend/web/
 │   ├── globals.css              # Tailwind 入口 + CSS 变量主题
 │   ├── api/
 │   │   ├── agent-run/route.ts   # POST 代理 → 后端 /v1/agents/runs
+│   │   ├── attachments/
+│   │   │   ├── route.ts         # GET/POST 代理 → 后端 /v1/attachments
+│   │   │   ├── [attachmentId]/
+│   │   │   │   └── route.ts     # GET 代理 → 后端 /v1/attachments/:attachmentId
+│   │   │   └── jobs/[jobId]/
+│   │   │       └── route.ts     # GET 代理 → 后端 /v1/attachments/jobs/:jobId
 │   │   ├── health/route.ts      # GET 代理 → 后端 /health
 │   │   ├── model-configs/
 │   │   │   ├── route.ts         # GET/POST 代理 → 后端 /v1/model-configs
@@ -46,6 +52,7 @@ frontend/web/
 ├── components/
 │   ├── agent-page-shell.tsx     # Agent 页面外壳（认证守卫 + 顶栏）
 │   ├── agent-workspace-wrapper.tsx # AgentWorkspace 客户端包装
+│   ├── attachment-upload-panel.tsx # 附件上传与处理状态面板
 │   ├── async-resource.tsx       # 通用异步资源渲染组件
 │   ├── auth-storage.ts          # 认证存储工具（localStorage）
 │   ├── health-status-panel.tsx  # 健康状态面板
@@ -83,6 +90,9 @@ frontend/web/
 |------|------|------|---------|
 | `/api/health` | `app/api/health/route.ts` | GET | 后端 `/health` |
 | `/api/agent-run` | `app/api/agent-run/route.ts` | POST | 后端 `/v1/agents/runs` |
+| `/api/attachments` | `app/api/attachments/route.ts` | GET/POST | 后端 `/v1/attachments` |
+| `/api/attachments/:attachmentId` | `app/api/attachments/[attachmentId]/route.ts` | GET | 后端 `/v1/attachments/:attachmentId` |
+| `/api/attachments/jobs/:jobId` | `app/api/attachments/jobs/[jobId]/route.ts` | GET | 后端 `/v1/attachments/jobs/:jobId` |
 | `/api/threads` | `app/api/threads/route.ts` | GET | 后端 `/v1/threads` |
 | `/api/auth/login` | `app/api/auth/login/route.ts` | POST | 后端 `/v1/auth/token` |
 | `/api/model-configs` | `app/api/model-configs/route.ts` | GET/POST | 后端 `/v1/model-configs` |
@@ -126,7 +136,7 @@ frontend/web/
                ▼
 ┌──────────────────────────────────────────────────────┐
 │  Next.js API Route（BFF 代理层）                      │
-│  /api/health, /api/agent-run, /api/model-configs     │
+│  /api/health, /api/agent-run, /api/attachments       │
 │                                                      │
 │  接收前端请求 → 转发到后端服务 → 返回 JSON             │
 └──────────────┬──────────────────────────────────────┘
@@ -219,6 +229,35 @@ export async function GET() {
 │  - CRUD 操作存储到 PostgreSQL                              │
 │  - activate 切换当前激活配置                               │
 └─────────────────────────────────────────────────────────┘
+
+### 附件上传与 RAG 自动索引数据流
+
+```text
+/agent 页面
+  -> AttachmentUploadPanel 选择文件
+  -> POST /api/attachments (multipart/form-data)
+  -> NestJS /v1/attachments
+  -> MinIO 保存原始文件
+  -> BullMQ attachment-process 队列
+  -> AttachmentService.processAttachmentJob()
+  -> 文本抽取 + chunk 入库
+  -> AttachmentTaskDispatcherService
+  -> POST rag-python-service /v1/rag/index/attachments
+```
+
+页面会额外轮询：
+
+- `/api/attachments?threadId=...`
+- `/api/attachments/jobs/:jobId`
+- `/api/attachments/:attachmentId`
+
+用于展示：
+
+- 上传结果
+- 后端解析状态
+- 任务队列状态
+- 失败原因
+- 文本预览
 
 ┌─────────────────────────────────────────────────────────┐
 │  /agent 页面（对话时）                                     │
