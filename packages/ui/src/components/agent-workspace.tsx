@@ -106,6 +106,68 @@ function upsertSession(list: AgentWorkspaceSession[], target: AgentWorkspaceSess
   return next.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
+function parseMessageContent(text: string): { reasoning: string | null; answer: string } {
+  const startTag = "【思考过程】";
+  const endTag = "【/思考过程】";
+
+  const startIdx = text.indexOf(startTag);
+  if (startIdx === -1) return { reasoning: null, answer: text };
+
+  const contentStart = startIdx + startTag.length;
+  const skipNewline = text[contentStart] === "\n" ? 1 : 0;
+  const afterStart = contentStart + skipNewline;
+
+  const endIdx = text.indexOf(endTag, afterStart);
+  if (endIdx === -1) {
+    return { reasoning: text.slice(afterStart), answer: text.slice(0, startIdx) };
+  }
+
+  return {
+    reasoning: text.slice(afterStart, endIdx).trim(),
+    answer: (text.slice(0, startIdx) + text.slice(endIdx + endTag.length)).trim()
+  };
+}
+
+function ReasoningBlock({ text, isStreaming }: { text: string; isStreaming: boolean }) {
+  const [collapsed, setCollapsed] = React.useState(false);
+
+  return (
+    <div className="mb-2 overflow-hidden rounded-lg border border-border/40 bg-foreground/5">
+      <button
+        type="button"
+        className="flex w-full items-center gap-2 px-3 py-2 text-xs text-foreground/60 transition-colors hover:text-foreground/80"
+        onClick={() => setCollapsed((v) => !v)}
+      >
+        <svg
+          className={cn("h-3 w-3 shrink-0 transition-transform", collapsed && "-rotate-90")}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+        <span>推理过程</span>
+        {isStreaming && (
+          <span className="flex items-center gap-[1px]">
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-foreground/45 [animation-delay:-0.2s]" />
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-foreground/45 [animation-delay:-0.1s]" />
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-foreground/45" />
+          </span>
+        )}
+      </button>
+      {!collapsed && (
+        <div className="border-t border-border/40 px-3 py-2 text-xs leading-relaxed text-foreground/70">
+          <span className="whitespace-pre-wrap">{text}</span>
+          {isStreaming && <span className="ml-0.5 inline-block h-3 w-1.5 animate-pulse bg-foreground/50" />}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AgentWorkspace({
   title = "IntelligentAgent Console",
   description = "左侧会话历史，右侧对话面板",
@@ -409,37 +471,72 @@ export function AgentWorkspace({
               {displayMessages.length === 0 ? (
                 <p className="text-sm text-foreground/60">输入消息开始对话</p>
               ) : null}
-              {displayMessages.map((message) => (
-                <div key={message.id} className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}>
-                  <div
-                    className={cn(
-                      "max-w-[85%] space-y-2 rounded-lg px-3 py-2 text-sm",
-                      message.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-foreground/10 text-foreground"
-                    )}
-                  >
-                    {message.attachments && message.attachments.length > 0 ? (
-                      <Attachments variant="inline">
-                        {message.attachments.map((attachment, index) => (
-                          <Attachment
-                            key={`${message.id}-${index}`}
-                            data={attachment}
-                            variant="inline"
-                            onOpenPreview={() => setPreviewAttachment(attachment)}
-                            className={message.role === "user" ? "border-white/30 bg-white/20 text-white" : ""}
-                          >
-                            <AttachmentPreview />
-                            <AttachmentInfo />
-                          </Attachment>
-                        ))}
-                      </Attachments>
-                    ) : null}
-                    <div className="whitespace-pre-wrap">{message.content}</div>
+              {displayMessages.map((message, idx) => {
+                const isLastAssistant = message.role === "assistant" && idx === displayMessages.length - 1;
+                const isMsgStreaming = isLastAssistant && displayLoading;
+
+                if (message.role === "assistant") {
+                  const { reasoning, answer } = parseMessageContent(message.content);
+                  return (
+                    <div key={message.id} className="flex justify-start">
+                      <div className="max-w-[85%] space-y-2 rounded-lg bg-foreground/10 px-3 py-2 text-sm text-foreground">
+                        {message.attachments && message.attachments.length > 0 ? (
+                          <Attachments variant="inline">
+                            {message.attachments.map((attachment, index) => (
+                              <Attachment
+                                key={`${message.id}-${index}`}
+                                data={attachment}
+                                variant="inline"
+                                onOpenPreview={() => setPreviewAttachment(attachment)}
+                              >
+                                <AttachmentPreview />
+                                <AttachmentInfo />
+                              </Attachment>
+                            ))}
+                          </Attachments>
+                        ) : null}
+                        {reasoning ? (
+                          <>
+                            <ReasoningBlock text={reasoning} isStreaming={isMsgStreaming} />
+                            {answer ? (
+                              <div className="whitespace-pre-wrap">{answer}</div>
+                            ) : (
+                              isMsgStreaming && <div className="h-4 w-12 animate-pulse rounded bg-foreground/20" />
+                            )}
+                          </>
+                        ) : (
+                          <div className="whitespace-pre-wrap">{message.content}</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={message.id} className="flex justify-end">
+                    <div className="max-w-[85%] space-y-2 rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground">
+                      {message.attachments && message.attachments.length > 0 ? (
+                        <Attachments variant="inline">
+                          {message.attachments.map((attachment, index) => (
+                            <Attachment
+                              key={`${message.id}-${index}`}
+                              data={attachment}
+                              variant="inline"
+                              onOpenPreview={() => setPreviewAttachment(attachment)}
+                              className="border-white/30 bg-white/20 text-white"
+                            >
+                              <AttachmentPreview />
+                              <AttachmentInfo />
+                            </Attachment>
+                          ))}
+                        </Attachments>
+                      ) : null}
+                      <div className="whitespace-pre-wrap">{message.content}</div>
+                    </div>
                   </div>
-                </div>
-              ))}
-              {displayLoading && useExternal ? <AssistantLoadingMessage /> : null}
+                );
+              })}
+              {displayLoading && useExternal && displayMessages[displayMessages.length - 1]?.role !== "assistant" ? <AssistantLoadingMessage /> : null}
               {isActiveSessionPending && !useExternal ? <AssistantLoadingMessage /> : null}
               <div ref={messagesEndRef} />
             </div>

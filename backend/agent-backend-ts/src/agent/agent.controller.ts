@@ -73,6 +73,9 @@ export class AgentController {
 
     const writeEvent = async (event: Record<string, unknown>) => {
       res.write(`data: ${JSON.stringify(event)}\n\n`);
+      if (typeof res.flush === "function") {
+        res.flush();
+      }
     };
 
     try {

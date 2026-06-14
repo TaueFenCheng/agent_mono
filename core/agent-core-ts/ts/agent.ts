@@ -19,6 +19,28 @@ import type {
 } from "./types";
 import { DefaultAgentToolRegistry, registerBuiltinTools } from "./tools";
 
+function extractToken(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .map((part: Record<string, unknown>) => (typeof part.text === "string" ? part.text : ""))
+      .join("");
+  }
+  return "";
+}
+
+function extractReasoningContent(chunk: { content?: unknown; additional_kwargs?: Record<string, unknown> }): string | undefined {
+  const fromArgs = chunk.additional_kwargs?.reasoning_content ?? chunk.additional_kwargs?.thinking;
+  if (typeof fromArgs === "string") return fromArgs;
+
+  if (Array.isArray(chunk.content)) {
+    const thinkingBlock = (chunk.content as Array<Record<string, unknown>>).find((p) => p.type === "thinking");
+    if (thinkingBlock && typeof thinkingBlock.thinking === "string") return thinkingBlock.thinking;
+    if (thinkingBlock && typeof (thinkingBlock as Record<string, unknown>).text === "string") return (thinkingBlock as Record<string, unknown>).text as string;
+  }
+  return undefined;
+}
+
 function extractLastAssistantText(messages: BaseMessage[]): string {
   for (let i = messages.length - 1; i >= 0; i -= 1) {
     const message = messages[i];
@@ -208,6 +230,8 @@ export class AgentCore {
 
         let fullOutput = "";
 
+        // 1st try: streamEvents (v2 structured events)
+        let streamedTokens = false;
         try {
           const eventStream = graph.streamEvents(streamInput, {
             ...cfg(),
@@ -220,21 +244,52 @@ export class AgentCore {
             const chunk = event.data?.chunk;
             if (!chunk) continue;
 
-            const reasoningContent = (chunk?.additional_kwargs?.reasoning_content ??
-              chunk?.additional_kwargs?.thinking) as string | undefined;
-            if (reasoningContent) {
-              push({ type: "reasoning_delta", runId, threadId, text: reasoningContent, at: now() });
-            }
-
-            const token = typeof chunk.content === "string" ? chunk.content : "";
+            const token = extractToken(chunk.content);
             if (token) {
+              streamedTokens = true;
               fullOutput += token;
               push({ type: "text_delta", runId, threadId, text: token, at: now() });
             }
-          }
-        } catch { /* fallback below */ }
 
-        if (!fullOutput) {
+            const reasoningContent = extractReasoningContent(chunk);
+            if (reasoningContent) {
+              push({ type: "reasoning_delta", runId, threadId, text: reasoningContent, at: now() });
+            }
+          }
+        } catch (e) {
+          console.warn(`[agent-core] streamEvents (v2) failed, trying fallback:`, e);
+        }
+
+        // 2nd try: graph.stream with streamMode "messages" (raw message chunks)
+        if (!streamedTokens) {
+          try {
+            const rawStream = await graph.stream(streamInput, {
+              ...cfg(),
+              streamMode: "messages"
+            });
+            for await (const item of rawStream) {
+              const msg = Array.isArray(item) ? item[1] : item;
+              if (!msg) continue;
+
+              const token = extractToken(msg.content);
+              if (token) {
+                streamedTokens = true;
+                fullOutput += token;
+                push({ type: "text_delta", runId, threadId, text: token, at: now() });
+              }
+
+              const rc = extractReasoningContent(msg as { content?: unknown; additional_kwargs?: Record<string, unknown> });
+              if (rc) {
+                push({ type: "reasoning_delta", runId, threadId, text: rc, at: now() });
+              }
+            }
+          } catch (e2) {
+            console.warn(`[agent-core] graph.stream (messages) failed, falling back to invoke:`, e2);
+          }
+        }
+
+        // 3rd try: non-streaming invoke
+        if (!streamedTokens) {
           const state = await graph.invoke(streamInput, cfg());
           fullOutput = extractLastAssistantText(state.messages as BaseMessage[]);
         }
