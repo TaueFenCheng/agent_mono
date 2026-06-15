@@ -35,8 +35,20 @@ const CODE_EXTENSIONS = new Set([
   ".php"
 ]);
 
-function sanitizeText(input: string): string {
-  return input.replace(/\u0000/g, "").replace(/\r\n/g, "\n").trim();
+function sanitizeText(input: unknown): string {
+  // Handle ExcelJS RichText arrays or other non-string types
+  let str: string;
+  if (typeof input === "string") {
+    str = input;
+  } else if (Array.isArray(input)) {
+    // ExcelJS RichText: [{ text: "xxx", ... }, ...]
+    str = input
+      .map((item: Record<string, unknown>) => (typeof item.text === "string" ? item.text : ""))
+      .join("");
+  } else {
+    str = String(input ?? "");
+  }
+  return str.replace(/\u0000/g, "").replace(/\r\n/g, "\n").trim();
 }
 
 function estimateTokens(text: string): number {
@@ -131,6 +143,46 @@ async function parseDocx(buffer: Buffer): Promise<ParsedAttachment> {
   };
 }
 
+async function parseExcel(buffer: Buffer): Promise<ParsedAttachment> {
+  const mod = await import("exceljs");
+  const ExcelJS = mod.default ?? mod;
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer as any);
+
+  const lines: string[] = [];
+  const sheetMetadata: Array<{ name: string; rowCount: number; columnCount: number }> = [];
+
+  workbook.eachSheet((worksheet) => {
+    sheetMetadata.push({
+      name: worksheet.name,
+      rowCount: worksheet.rowCount,
+      columnCount: worksheet.columnCount
+    });
+    lines.push(`# 工作表: ${worksheet.name}`);
+    worksheet.eachRow((row, rowNumber) => {
+      const cells: string[] = [];
+      row.eachCell({ includeEmpty: false }, (cell, columnNumber) => {
+        const text = sanitizeText(cell.text ?? "");
+        if (text) {
+          cells.push(`${worksheet.getColumn(columnNumber).letter}=${text}`);
+        }
+      });
+      if (cells.length > 0) {
+        lines.push(`第 ${rowNumber} 行: ${cells.join(" | ")}`);
+      }
+    });
+    lines.push("");
+  });
+
+  return {
+    parser: "exceljs",
+    text: sanitizeText(lines.join("\n")),
+    metadata: {
+      sheets: sheetMetadata
+    }
+  };
+}
+
 function parseUtf8(buffer: Buffer, parser: string): ParsedAttachment {
   return {
     parser,
@@ -140,25 +192,49 @@ function parseUtf8(buffer: Buffer, parser: string): ParsedAttachment {
 }
 
 async function parseImageByOcr(buffer: Buffer, ocrLang = "eng+chi_sim"): Promise<ParsedAttachment> {
+  console.log(`[OCR] Starting OCR parse, buffer size: ${buffer.length} bytes, lang: ${ocrLang}`);
+
   try {
     const mod = await import("tesseract.js");
-    const recognize = mod.recognize as (image: Buffer, lang?: string) => Promise<{ data?: { text?: string } }>;
+    console.log("[OCR] tesseract.js module loaded, exports:", Object.keys(mod));
+
+    // tesseract.js v7 is CJS, need to access .default for ESM import
+    const tesseract = mod.default ?? mod;
+    const recognize = tesseract.recognize as (image: Buffer, lang?: string) => Promise<{ data?: { text?: string } }>;
+
+    if (typeof recognize !== "function") {
+      throw new Error(`recognize is not a function, available: ${Object.keys(tesseract).join(", ")}`);
+    }
+
+    console.log("[OCR] Calling recognize...");
     const result = await recognize(buffer, ocrLang);
+    console.log("[OCR] Raw result keys:", result ? Object.keys(result) : "null");
+    console.log("[OCR] result.data keys:", result?.data ? Object.keys(result.data) : "null");
+
+    const text = sanitizeText(result?.data?.text ?? "");
+
+    console.log(`[OCR] Success, extracted ${text.length} chars`);
     return {
       parser: "tesseract.js",
-      text: sanitizeText(result?.data?.text ?? ""),
+      text,
       metadata: {
         ocr: true,
         lang: ocrLang
       }
     };
   } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const errStack = error instanceof Error ? error.stack : undefined;
+    console.error("[OCR] Failed:", errMsg);
+    if (errStack) console.error("[OCR] Stack:", errStack);
+
     return {
       parser: "ocr-unavailable",
       text: "",
       metadata: {
         ocr: false,
-        error: error instanceof Error ? error.message : String(error)
+        error: errMsg,
+        stack: errStack
       }
     };
   }
@@ -184,6 +260,13 @@ export async function parseAttachment(input: {
     ext === ".doc"
   ) {
     return parseDocx(input.buffer);
+  }
+
+  if (
+    contentType.includes("spreadsheetml.sheet") ||
+    ext === ".xlsx"
+  ) {
+    return parseExcel(input.buffer);
   }
 
   if (contentType.startsWith("image/")) {

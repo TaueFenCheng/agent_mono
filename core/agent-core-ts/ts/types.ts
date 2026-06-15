@@ -49,6 +49,7 @@ export interface RoutedModelResult {
 export interface AgentInvokeInput {
   prompt: string;
   threadId: string;
+  systemContext?: string;
   provider?: string;
   model?: string;
   metadata?: Record<string, unknown>;

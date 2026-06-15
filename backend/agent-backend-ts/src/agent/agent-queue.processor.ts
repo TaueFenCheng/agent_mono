@@ -8,6 +8,7 @@ import type { SubagentRunDto } from "../subagent/subagent.dto.js";
 import { resolvePrompt, resolveThreadId, type AgentRunPayloadLike } from "./agent.payload.js";
 import { AttachmentService } from "../attachment/attachment.service.js";
 import { REDIS_MODULE_OPTIONS, type RedisModuleOptions } from "../infra/redis.constants.js";
+import { RagRetrievalService } from "./rag-retrieval.service.js";
 
 @Injectable()
 export class AgentQueueProcessor implements OnModuleInit {
@@ -19,6 +20,7 @@ export class AgentQueueProcessor implements OnModuleInit {
   constructor(
     private readonly db: DatabaseService,
     private readonly attachmentService: AttachmentService,
+    private readonly ragRetrieval: RagRetrievalService,
     @Inject(REDIS_MODULE_OPTIONS) private readonly redisOptions: RedisModuleOptions
   ) {}
 
@@ -106,10 +108,12 @@ export class AgentQueueProcessor implements OnModuleInit {
     this.logger.log(`processing job=${job.id} threadId=${threadId} provider=${providerLabel}`);
 
     await job.updateProgress(10);
+    const ragContext = await this.ragRetrieval.retrieve(lastMessage, threadId);
 
     const runtimeResult = await invokeAgent({
       prompt: lastMessage,
       threadId,
+      systemContext: ragContext.systemContext,
       provider: requestedProvider,
       model: payload.model,
       metadata: { user_id: payload.userId, ...(payload.metadata ?? {}) },

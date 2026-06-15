@@ -155,6 +155,10 @@ export class AttachmentService {
         ocrLang: this.ocrLang
       });
       const chunks = chunkText(parsed.text, this.chunkMaxChars);
+      if (chunks.length === 0) {
+        const detail = parsed.metadata?.error ? `: ${parsed.metadata.error}` : "";
+        throw new Error(`No extractable text found in attachment (parser=${parsed.parser}${detail})`);
+      }
 
       await prisma.$transaction(async (tx) => {
         await tx.attachment.update({

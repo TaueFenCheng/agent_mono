@@ -35,13 +35,15 @@ import {
 } from "../runtime/agent.runtime.js";
 import type { AgentRunDto } from "./agent.dto.js";
 import { resolvePrompt, resolveThreadId, type AgentRunPayloadLike } from "./agent.payload.js";
+import { RagRetrievalService } from "./rag-retrieval.service.js";
 
 @Injectable()
 export class AgentService implements OnModuleDestroy {
   constructor(
     private readonly db: DatabaseService,
     private readonly redis: RedisService,
-    private readonly agentQueue: AgentQueueService
+    private readonly agentQueue: AgentQueueService,
+    private readonly ragRetrieval: RagRetrievalService
   ) {}
 
   async run(payload: AgentRunDto, userId?: string): Promise<AgentRunResponse> {
@@ -55,7 +57,8 @@ export class AgentService implements OnModuleDestroy {
     const requestedProvider = payload.provider;
     const effectiveUserId = userId ?? payload.userId ?? "anonymous";
     const cacheProvider = requestedProvider ?? process.env.AGENT_PROVIDER ?? "qwen";
-    const cacheKey = `agent:run:${effectiveUserId}:${cacheProvider}:${payload.model ?? "default"}:${threadId}:${lastMessage}`;
+    const ragContext = await this.ragRetrieval.retrieve(lastMessage, threadId);
+    const cacheKey = `agent:run:${effectiveUserId}:${cacheProvider}:${payload.model ?? "default"}:${threadId}:${ragContext.cacheSignature}:${lastMessage}`;
 
     const cached = await this.redis.getCachedOutput(cacheKey);
     if (cached) {
@@ -76,6 +79,7 @@ export class AgentService implements OnModuleDestroy {
       const runtimeResult = await invokeAgent({
         prompt: lastMessage,
         threadId,
+        systemContext: ragContext.systemContext,
         provider: requestedProvider,
         model: payload.model,
         metadata: { user_id: userId ?? payload.userId, ...(payload.metadata ?? {}) },
@@ -138,7 +142,8 @@ export class AgentService implements OnModuleDestroy {
     const requestedProvider = payload.provider;
     const effectiveUserId = userId ?? payload.userId ?? "anonymous";
     const cacheProvider = requestedProvider ?? process.env.AGENT_PROVIDER ?? "qwen";
-    const cacheKey = `agent:run:${effectiveUserId}:${cacheProvider}:${payload.model ?? "default"}:${threadId}:${lastMessage}`;
+    const ragContext = await this.ragRetrieval.retrieve(lastMessage, threadId);
+    const cacheKey = `agent:run:${effectiveUserId}:${cacheProvider}:${payload.model ?? "default"}:${threadId}:${ragContext.cacheSignature}:${lastMessage}`;
 
     const cached = await this.redis.getCachedOutput(cacheKey);
     if (cached) {
@@ -174,6 +179,7 @@ export class AgentService implements OnModuleDestroy {
       for await (const event of invokeAgentStream({
         prompt: lastMessage,
         threadId,
+        systemContext: ragContext.systemContext,
         provider: requestedProvider,
         model: payload.model,
         metadata: { user_id: userId ?? payload.userId, ...(payload.metadata ?? {}) },

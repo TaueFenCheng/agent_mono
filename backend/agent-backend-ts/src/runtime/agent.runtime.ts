@@ -239,6 +239,7 @@ export async function shutdownAgentRuntime(): Promise<void> {
 export async function invokeAgent(input: {
   prompt: string;
   threadId: string;
+  systemContext?: string;
   provider?: string;
   model?: string;
   metadata?: Record<string, unknown>;
@@ -273,6 +274,7 @@ export async function invokeAgent(input: {
   return runtime.core.invoke({
     prompt: input.prompt,
     threadId: input.threadId,
+    systemContext: input.systemContext,
     provider,
     model,
     metadata: input.metadata,
@@ -285,6 +287,7 @@ export async function invokeAgent(input: {
 export async function* invokeAgentStream(input: {
   prompt: string;
   threadId: string;
+  systemContext?: string;
   provider?: string;
   model?: string;
   metadata?: Record<string, unknown>;
@@ -318,6 +321,7 @@ export async function* invokeAgentStream(input: {
   for await (const event of runtime.core.invokeStream({
     prompt: input.prompt,
     threadId: input.threadId,
+    systemContext: input.systemContext,
     provider,
     model,
     metadata: input.metadata,

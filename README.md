@@ -52,6 +52,8 @@ Browser / Electron / CLI
 
 ### Attachment And RAG Pipeline
 
+![附件上传与 Agent 问答流程](./docs/images/attachment-agent-rag-flow.png)
+
 ```
 用户上传附件
   → Next.js /api/attachments
@@ -59,11 +61,22 @@ Browser / Electron / CLI
   → MinIO 落盘
   → BullMQ attachment-process
   → AttachmentService.processAttachmentJob()
-    → 文本抽取 / OCR / chunk 入库
+    → 按文件类型执行文本抽取 / OCR
+    → 文本分块并写入 attachment_chunks
     → AttachmentTaskDispatcherService
       → rag-python-service /v1/rag/index/attachments
         → LlamaIndex + pgvector 建索引
+
+用户在同一会话中提问
+  → 请求携带与附件相同的 threadId
+  → AgentService 调用 rag-python-service /v1/rag/search
+    → 有向量命中：返回当前会话的相关 chunks
+    → 向量检索不可用或无命中：降级读取 PostgreSQL 中当前会话的 attachment_chunks
+  → 检索内容作为系统上下文注入 AgentCore
+  → Agent / LLM 生成带来源文件的回答
 ```
+
+当前可解析格式包括 PDF、DOCX、XLSX、图片 OCR，以及文本和常见代码文件。不支持或无法提取文本的附件会标记为 `failed`。向量检索依赖可用的 embedding 模型配置；配置不可用时，Agent 仍可通过当前会话的已解析 chunks 完成附件问答。
 
 ### Event Types
 

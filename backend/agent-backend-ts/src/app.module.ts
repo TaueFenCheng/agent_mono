@@ -28,6 +28,7 @@ import { DatabaseModule } from "./infra/database.module.js";
 import { RedisModule } from "./infra/redis.module.js";
 import { ObjectStorageModule } from "./attachment/object-storage.module.js";
 import { AttachmentTaskDispatcherService } from "./attachment/attachment-task-dispatcher.service.js";
+import { RagRetrievalService } from "./agent/rag-retrieval.service.js";
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { AttachmentTaskDispatcherService } from "./attachment/attachment-task-di
     SubagentService,
     AttachmentService,
     AttachmentTaskDispatcherService,
+    RagRetrievalService,
     ModelConfigService,
     AgentQueueService,
     AgentQueueProcessor

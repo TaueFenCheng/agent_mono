@@ -105,6 +105,10 @@ export class AgentCore {
       if (memoryContext) promptSections.push(memoryContext);
     }
 
+    if (input.systemContext) {
+      promptSections.push(input.systemContext);
+    }
+
     const skillContext = this.skillRegistry.renderPromptContext({ enabledNames: input.enabledSkills });
     if (skillContext) promptSections.push(skillContext);
 
@@ -211,6 +215,10 @@ export class AgentCore {
         if (this.options.memoryStore) {
           const ctx = await this.options.memoryStore.renderPromptContext(threadId, { limit: 20 });
           if (ctx) promptSections.push(ctx);
+        }
+
+        if (input.systemContext) {
+          promptSections.push(input.systemContext);
         }
 
         const skillCtx = this.skillRegistry.renderPromptContext({ enabledNames: input.enabledSkills });

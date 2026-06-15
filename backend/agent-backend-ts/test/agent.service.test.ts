@@ -9,8 +9,15 @@ describe("AgentService", () => {
       setCachedOutput: vi.fn()
     } as any;
     const queue = {} as any;
+    const ragRetrieval = {
+      retrieve: vi.fn().mockResolvedValue({
+        systemContext: "",
+        cacheSignature: "none",
+        hitCount: 0
+      })
+    } as any;
 
-    const service = new AgentService(db, redis, queue);
+    const service = new AgentService(db, redis, queue, ragRetrieval);
     const response = await service.run({
       sessionId: "s1",
       messages: [{ role: "user", content: "hello", createdAt: new Date().toISOString() }]
@@ -18,6 +25,7 @@ describe("AgentService", () => {
 
     expect(response.cached).toBe(true);
     expect(response.output).toBe("cached answer");
+    expect(ragRetrieval.retrieve).toHaveBeenCalledWith("hello", "s1");
     expect(db.appendRunRecord).not.toHaveBeenCalled();
   });
 });
