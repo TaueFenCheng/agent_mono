@@ -95,7 +95,8 @@ export class RagRetrievalService {
       }
 
       const envelope = (await response.json()) as RagSearchEnvelope;
-      const hits = Array.isArray(envelope.data?.hits) ? envelope.data.hits : [];
+      const rawHits = envelope.data?.hits;
+      const hits: RagSearchHit[] = rawHits ?? [];
       if (hits.length === 0) {
         return this.retrieveParsedChunks(threadId);
       }
@@ -133,8 +134,8 @@ export class RagRetrievalService {
         cacheSignature,
         hitCount: blocks.length
       };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+    } catch (error: unknown) {
+      const message = (error as Error)?.message ?? String(error);
       this.logger.warn(`rag search request failed threadId=${threadId} error=${message}`);
       return this.retrieveParsedChunks(threadId);
     } finally {
