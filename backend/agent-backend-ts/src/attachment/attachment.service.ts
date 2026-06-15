@@ -9,6 +9,7 @@ import { AttachmentStorageService } from "./attachment.storage.js";
 import { chunkText, parseAttachment } from "./attachment.parser.js";
 import type { UploadAttachmentDto } from "./attachment.dto.js";
 import { AttachmentTaskDispatcherService } from "./attachment-task-dispatcher.service.js";
+import { normalizeUploadFileName } from "./attachment-file-name.js";
 
 function normalizeMeta(metadata?: string): Record<string, unknown> {
   if (!metadata || !metadata.trim()) return {};
@@ -100,12 +101,13 @@ export class AttachmentService {
       throw new BadRequestException("Missing upload file");
     }
 
+    const fileName = normalizeUploadFileName(file.originalname);
     const maxBytes = this.maxUploadMb * 1024 * 1024;
     if (file.size > maxBytes) {
       throw new BadRequestException(`File too large. max=${this.maxUploadMb}MB`);
     }
 
-    const objectKey = buildObjectKey(file.originalname);
+    const objectKey = buildObjectKey(fileName);
     const contentType = file.mimetype || "application/octet-stream";
     const sha256 = createHash("sha256").update(file.buffer).digest("hex");
     await this.storage.uploadObject({ key: objectKey, body: file.buffer, contentType });
@@ -115,7 +117,7 @@ export class AttachmentService {
       data: {
         threadId: payload.threadId ?? null,
         runId: payload.runId ?? null,
-        fileName: file.originalname,
+        fileName,
         contentType,
         sizeBytes: file.size,
         storageProvider: "s3",

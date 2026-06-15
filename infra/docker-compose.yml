@@ -47,6 +47,19 @@ services:
       timeout: 3s
       retries: 10
 
+  minio-init:
+    image: minio/mc:latest
+    container_name: intelligent-agent-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >
+        mc alias set local http://minio:9000 minioadmin minioadmin &&
+        mc mb --ignore-existing local/intelligent-agent
+
   # ── 应用服务 ──
 
   api:
@@ -67,8 +80,10 @@ services:
         condition: service_healthy
       minio:
         condition: service_started
+      minio-init:
+        condition: service_completed_successfully
       rag:
-        condition: service_started
+        condition: service_healthy
 
   rag:
     build:
@@ -81,6 +96,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8082/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
 
   web:
     build:

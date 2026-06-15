@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Upload, RefreshCw, FileText, AlertCircle, CheckCircle2, LoaderCircle } from "lucide-react";
+import { RefreshCw, FileText, AlertCircle, CheckCircle2, LoaderCircle } from "lucide-react";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@intelligent-agent/ui";
 
 interface BackendEnvelope<T> {
@@ -108,7 +108,6 @@ async function parseEnvelope<T>(response: Response): Promise<BackendEnvelope<T>>
 
 export function AttachmentUploadPanel({ accessToken, threadId, onUnauthorized }: AttachmentUploadPanelProps) {
   const [items, setItems] = useState<AttachmentRecord[]>([]);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -211,15 +210,15 @@ export function AttachmentUploadPanel({ accessToken, threadId, onUnauthorized }:
     };
   }, [authHeaders, handleUnauthorized, items]);
 
-  const handleUpload = useCallback(async () => {
-    if (!selectedFile || isUploading) return;
+  const handleUpload = useCallback(async (file: File) => {
+    if (isUploading) return;
 
     setIsUploading(true);
     setError("");
 
     try {
       const formData = new FormData();
-      formData.append("file", selectedFile);
+      formData.append("file", file);
       formData.append("threadId", threadId);
       formData.append("metadata", JSON.stringify({ source: "frontend-web", uploadedAt: new Date().toISOString() }));
 
@@ -238,18 +237,17 @@ export function AttachmentUploadPanel({ accessToken, threadId, onUnauthorized }:
         },
         ...current.filter((item) => item.id !== result.data.id)
       ]);
-      setSelectedFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
     } catch (uploadError) {
       const message = uploadError instanceof Error ? uploadError.message : "附件上传失败";
       handleUnauthorized(message);
       setError(message);
     } finally {
       setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
-  }, [authHeaders, handleUnauthorized, isUploading, selectedFile, threadId]);
+  }, [authHeaders, handleUnauthorized, isUploading, threadId]);
 
   return (
     <Card>
@@ -262,14 +260,22 @@ export function AttachmentUploadPanel({ accessToken, threadId, onUnauthorized }:
           <input
             ref={fileInputRef}
             type="file"
+            disabled={isUploading}
             className="block w-full text-sm text-foreground/80 file:mr-3 file:rounded-md file:border-0 file:bg-foreground/10 file:px-3 file:py-2 file:text-sm file:text-foreground"
-            onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) {
+                void handleUpload(file);
+              }
+            }}
           />
           <div className="flex items-center gap-2">
-            <Button onClick={handleUpload} disabled={!selectedFile || isUploading} className="gap-2">
-              {isUploading ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Upload className="h-4 w-4" aria-hidden="true" />}
-              上传
-            </Button>
+            {isUploading ? (
+              <div className="flex items-center gap-2 whitespace-nowrap text-sm text-foreground/65" role="status">
+                <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                正在上传并解析…
+              </div>
+            ) : null}
             <Button variant="outline" onClick={() => void loadAttachments()} disabled={isRefreshing} className="gap-2">
               <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} aria-hidden="true" />
               刷新

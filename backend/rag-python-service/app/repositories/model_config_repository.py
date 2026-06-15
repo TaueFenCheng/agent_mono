@@ -28,10 +28,10 @@ class ModelConfigRepository:
         result = await session.execute(
             text(
                 """
-                SELECT name, provider, model, api_key, base_url, is_active
+                SELECT name, provider, model, "apiKey", "baseUrl", "isActive"
                 FROM model_configs
                 WHERE name = :name
-                ORDER BY is_active DESC, created_at DESC
+                ORDER BY "isActive" DESC, created_at DESC
                 LIMIT 1
                 """
             ),
@@ -45,9 +45,9 @@ class ModelConfigRepository:
         result = await session.execute(
             text(
                 """
-                SELECT name, provider, model, api_key, base_url, is_active
+                SELECT name, provider, model, "apiKey", "baseUrl", "isActive"
                 FROM model_configs
-                WHERE is_active = TRUE
+                WHERE "isActive" = TRUE
                 ORDER BY created_at DESC
                 LIMIT 1
                 """
