@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import {
   AgentCore,
+  type CoreProvider,
   type AgentRunEvent,
   DefaultAgentToolRegistry,
   type CheckpointerManager,
@@ -20,6 +21,13 @@ import {
 import { PrismaMemoryStore } from "../infra/prisma-memory.store.js";
 import { z } from "zod";
 import path from "path";
+
+const CORE_PROVIDERS = new Set<CoreProvider>(["qwen", "glm", "openai", "anthropic", "gemini", "deepseek"]);
+
+function asCoreProvider(value?: string): CoreProvider | undefined {
+  if (!value) return undefined;
+  return CORE_PROVIDERS.has(value as CoreProvider) ? (value as CoreProvider) : undefined;
+}
 
 export interface AgentRuntime {
   core: AgentCore;
@@ -54,6 +62,7 @@ async function createCore(prisma: PrismaClient): Promise<AgentRuntime> {
 
   const registry = registerBuiltinTools(new DefaultAgentToolRegistry());
   const skillRegistry = new SkillRegistry();
+  let runtimeRef: AgentRuntime | null = null;
 
   const mcpPlugins = await loadMcpPluginsFromEnv();
   for (const plugin of mcpPlugins) {
@@ -160,6 +169,109 @@ async function createCore(prisma: PrismaClient): Promise<AgentRuntime> {
     },
   });
 
+  registry.registerLocalTool({
+    name: "invoke_subagents",
+    description:
+      "Delegate a complex task to specialized subagents (planner/researcher/coder). Use this when the task benefits from structured decomposition, parallel research, or a separate implementation pass.",
+    schema: z.object({
+      prompt: z.string().trim().optional().describe("High-level objective for the subagents. Required when `tasks` is empty."),
+      tasks: z
+        .array(
+          z.object({
+            taskId: z.string().trim().optional().describe("Optional explicit task id"),
+            role: z.enum(["planner", "researcher", "coder"]).describe("Which specialized subagent should handle the task"),
+            prompt: z.string().trim().min(1).describe("Concrete instruction for this subagent"),
+            provider: z.string().trim().optional().describe("Optional provider override for this task"),
+            model: z.string().trim().optional().describe("Optional model override for this task")
+          })
+        )
+        .max(8)
+        .optional()
+        .describe("Optional explicit subagent task list. If omitted, the planner will create tasks automatically."),
+      provider: z.string().trim().optional().describe("Default provider override for the subagent run"),
+      model: z.string().trim().optional().describe("Default model override for the subagent run"),
+      maxConcurrency: z.number().int().min(1).max(8).optional().describe("Maximum parallel subagent workers"),
+      taskTimeoutMs: z.number().int().min(500).max(300000).optional().describe("Per-task timeout in milliseconds"),
+      planner: z
+        .object({
+          provider: z.string().trim().optional(),
+          model: z.string().trim().optional()
+        })
+        .optional()
+        .describe("Optional model override for the planner subagent"),
+      researcher: z
+        .object({
+          provider: z.string().trim().optional(),
+          model: z.string().trim().optional()
+        })
+        .optional()
+        .describe("Optional model override for the researcher subagent"),
+      coder: z
+        .object({
+          provider: z.string().trim().optional(),
+          model: z.string().trim().optional()
+        })
+        .optional()
+        .describe("Optional model override for the coder subagent")
+    }),
+    executionMode: "sequential",
+    timeoutMs: 300000,
+    invoke: async (input, context) => {
+      if (!runtimeRef) {
+        throw new Error("Agent runtime is not ready for subagent delegation.");
+      }
+      if (!context.threadId) {
+        throw new Error("threadId is required for subagent delegation.");
+      }
+
+      const result = await runtimeRef.core.invokeSubagents({
+        threadId: context.threadId,
+        runId: context.runId ? `${context.runId}:subagents` : undefined,
+        prompt: input.prompt,
+        tasks: input.tasks?.map((task) => ({
+          ...task,
+          provider: asCoreProvider(task.provider)
+        })),
+        provider: asCoreProvider(input.provider),
+        model: input.model,
+        metadata: context.metadata,
+        maxConcurrency: input.maxConcurrency,
+        taskTimeoutMs: input.taskTimeoutMs,
+        roleModelOverrides: {
+          ...(input.planner
+            ? { planner: { provider: asCoreProvider(input.planner.provider), model: input.planner.model } }
+            : {}),
+          ...(input.researcher
+            ? { researcher: { provider: asCoreProvider(input.researcher.provider), model: input.researcher.model } }
+            : {}),
+          ...(input.coder
+            ? { coder: { provider: asCoreProvider(input.coder.provider), model: input.coder.model } }
+            : {})
+        }
+      });
+
+      return {
+        runId: result.runId,
+        threadId: result.threadId,
+        partial: result.partial,
+        summary: result.summary,
+        tasks: result.tasks,
+        results: result.results.map((item) => ({
+          taskId: item.taskId,
+          role: item.role,
+          status: item.status,
+          threadId: item.threadId,
+          provider: item.provider,
+          model: item.model,
+          output: item.output,
+          error: item.error,
+          durationMs: item.durationMs,
+          checkpointId: item.checkpointId
+        }))
+      };
+    }
+  });
+
   let checkpointerManager: CheckpointerManager;
   try {
     checkpointerManager = await createCheckpointerManager({
@@ -174,7 +286,7 @@ async function createCore(prisma: PrismaClient): Promise<AgentRuntime> {
     checkpointerManager = await createCheckpointerManager({ backend: "memory" });
   }
 
-  return {
+  const runtime: AgentRuntime = {
     core: new AgentCore({
       toolRegistry: registry,
       memoryStore,
@@ -218,6 +330,8 @@ async function createCore(prisma: PrismaClient): Promise<AgentRuntime> {
       await checkpointerManager.close();
     }
   };
+  runtimeRef = runtime;
+  return runtime;
 }
 
 let runtimeInitPromise: Promise<AgentRuntime> | null = null;

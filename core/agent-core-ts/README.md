@@ -30,6 +30,7 @@ Reference inspirations:
 - `DefaultAgentToolRegistry` for local + structured + MCP plugin tools
 - `loadMcpPluginsFromEnv()` for runtime plugin injection
 - Built-in tools for time/echo/calculate/memory/skills operations
+- Runtime-local tools can extend the registry with orchestration capabilities such as `invoke_subagents`
 - Checkpointer-backed thread history helpers (`listThreads`, `getThread`)
 - MCP runtime methods: list loaded plugins, list MCP tools, invoke MCP tool
 

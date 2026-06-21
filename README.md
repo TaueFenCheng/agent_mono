@@ -86,6 +86,7 @@ Browser / Electron / CLI
 | `model_selected` | 选中的 LLM Provider + 模型 |
 | `tools_resolved` | 已注册的工具列表 |
 | `tool_start` / `tool_end` | 工具调用开始/结束（含输入输出）|
+| `plan_created` / `subagent_*` | 子代理拆解与执行事件 |
 | `reasoning_delta` | 模型的推理/思考过程（仅推理模型）|
 | `text_delta` | LLM 逐 token 输出 |
 | `run_end` | 执行完成，含最终输出 |
