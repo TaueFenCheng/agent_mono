@@ -16,6 +16,5 @@ docs/doc_build
 docs/.rspress
 
 .trellis/
-docs/yunfan
-docs/interview
-docs/public-access.md
+docs/
+
