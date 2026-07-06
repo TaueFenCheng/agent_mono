@@ -7,9 +7,12 @@
 - LangChain + LangGraph ReAct runtime orchestration
 - Tool registry with built-in tools, local tools, and MCP-injected tools
 - Built-in tools: `get_time`, `echo_text`, `calculate`, `remember_fact`, `list_memory`, `list_skills`, `read_skill`
+- Host file/shell tools: `read_file`, `write_file`, `list_files`, `execute_command`
+- `coder` subagent sandbox tools: `sandbox_read_file`, `sandbox_write_file`, `sandbox_list_files`, `sandbox_execute_command`
 - Skills prompt-context injection from local `SKILL.md` files
 - Thread-level memory operations with persistence adapters
 - Thread/checkpoint history APIs via LangGraph checkpointer
+- Per-subagent workspace sandboxes preserved under `${AGENT_SANDBOX_ROOT:-.agent/sandboxes}`
 
 ## Model routing
 

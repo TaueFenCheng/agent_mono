@@ -8,6 +8,10 @@ export interface SubagentExecutionOptions {
   failurePolicy: SubagentFailurePolicy;
   roleModelOverrides?: Partial<Record<SubagentRole, { provider?: string; model?: string }>>;
   roleToolAllowlist?: Partial<Record<SubagentRole, string[]>>;
+  resolveToolContext?: (
+    task: { role: SubagentRole; taskId: string; subThreadId: string; runId: string }
+  ) => Promise<Record<string, unknown> | undefined> | Record<string, unknown> | undefined;
+  getSandboxInfo?: (subThreadId: string) => { backendId: string; workspaceRoot: string; preserved: boolean } | null;
 }
 
 export interface SubagentInvokeDelegate {
@@ -20,6 +24,7 @@ export interface SubagentInvokeDelegate {
     enabledSkills?: string[];
     runId?: string;
     toolAllowlist?: string[];
+    toolContext?: Record<string, unknown>;
   }): Promise<AgentInvokeOutput>;
 }
 
@@ -105,7 +110,13 @@ async function planTasks(
       metadata: input.metadata,
       enabledSkills: input.enabledSkills,
       runId: `${input.runId ?? input.threadId}:planner`,
-      toolAllowlist: options.roleToolAllowlist?.planner
+      toolAllowlist: options.roleToolAllowlist?.planner,
+      toolContext: await options.resolveToolContext?.({
+        role: "planner",
+        taskId: "planner",
+        subThreadId: `${input.threadId}:sub:${input.runId ?? input.threadId}:planner`,
+        runId: `${input.runId ?? input.threadId}:planner`
+      })
     });
     const parsed = extractJsonArray(planned.output ?? "");
     if (!parsed) return defaultPlan(input.prompt);
@@ -219,6 +230,12 @@ export async function runSubagents(
       const provider = task.provider ?? roleOverride?.provider ?? input.provider;
       const model = task.model ?? roleOverride?.model ?? input.model;
       const allowlist = options.roleToolAllowlist?.[task.role];
+      const toolContext = await options.resolveToolContext?.({
+        role: task.role,
+        taskId,
+        subThreadId,
+        runId
+      });
 
       try {
         const output = await withTimeout(
@@ -230,7 +247,8 @@ export async function runSubagents(
             metadata: { ...(input.metadata ?? {}), ...(task.metadata ?? {}), parent_thread_id: input.threadId, subagent_role: task.role },
             enabledSkills: input.enabledSkills,
             runId: `${runId}:${taskId}`,
-            toolAllowlist: allowlist
+            toolAllowlist: allowlist,
+            toolContext
           }),
           taskTimeoutMs
         );
@@ -248,7 +266,8 @@ export async function runSubagents(
           startedAt,
           endedAt,
           durationMs,
-          checkpointId: output.checkpointId ?? null
+          checkpointId: output.checkpointId ?? null,
+          sandbox: options.getSandboxInfo?.(subThreadId) ?? null
         };
         await emit?.({
           type: "subagent_end",
@@ -278,7 +297,8 @@ export async function runSubagents(
           startedAt,
           endedAt,
           durationMs,
-          checkpointId: null
+          checkpointId: null,
+          sandbox: options.getSandboxInfo?.(subThreadId) ?? null
         };
         await emit?.({
           type: "subagent_error",
@@ -328,4 +348,3 @@ export async function runSubagents(
     createdAt
   };
 }
-

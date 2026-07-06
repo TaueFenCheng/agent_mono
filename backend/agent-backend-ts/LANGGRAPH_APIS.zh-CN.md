@@ -354,6 +354,7 @@ function normalizeThreadConfig(threadId?: string): RunnableConfig {
 
 2. LangGraph 原生多 agent supervisor graph
 - 当前 `subagent` 是项目自定义编排层，不是直接用 LangGraph supervisor 模式搭的图
+- 但 `coder` 子代理会在项目自定义的 workspace sandbox 中执行 `sandbox_*` 工具，不直接继承宿主机文件/命令工具
 
 3. LangGraph store / semantic memory 官方能力
 - 当前 memory 是项目自己抽象的 `MemoryStore`，落在内存或 PostgreSQL，不是 LangGraph store

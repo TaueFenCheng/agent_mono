@@ -7,9 +7,12 @@ English version: `AGENT_CAPABILITIES.md`
 - LangChain + LangGraph ReAct 运行时编排
 - 工具注册中心（内置工具、本地工具、MCP 注入工具）
 - 内置工具：`get_time`、`echo_text`、`calculate`、`remember_fact`、`list_memory`、`list_skills`、`read_skill`
+- 宿主机文件/命令工具：`read_file`、`write_file`、`list_files`、`execute_command`
+- `coder` 子代理 sandbox 工具：`sandbox_read_file`、`sandbox_write_file`、`sandbox_list_files`、`sandbox_execute_command`
 - 基于本地 `SKILL.md` 的 skills 提示注入
 - 线程级 memory 操作与持久化适配
 - 基于 LangGraph checkpointer 的线程/检查点历史查询
+- 子代理独立 workspace sandbox，默认保留在 `${AGENT_SANDBOX_ROOT:-.agent/sandboxes}`
 
 ## 模型路由能力
 

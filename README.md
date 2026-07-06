@@ -304,8 +304,10 @@ open http://localhost:8080   # API 健康检查
 | 方式 | API | 示例 |
 |------|-----|------|
 | **内置工具** | `registerBuiltinTools(registry)` | `get_time`, `calculate`, `echo_text`, `remember_fact`, `list_memory`, `list_skills`, `read_skill` |
-| **本地工具** | `registry.registerLocalTool(spec)` | `read_file`, `write_file`, `execute_command`, `list_files` |
+| **本地工具** | `registry.registerLocalTool(spec)` | `read_file`, `write_file`, `execute_command`, `list_files`, `sandbox_read_file`, `sandbox_write_file`, `sandbox_execute_command`, `sandbox_list_files` |
 | **MCP 插件** | `registry.useMcpPlugin(plugin)` | 通过 `AGENT_MCP_SERVERS_JSON` 配置的外部 MCP 服务器 |
+
+本地工具现在通过 execution backend 抽象访问宿主机或子代理 sandbox。宿主机工具继续使用 `read_file` / `write_file` / `execute_command` / `list_files`；`coder` 子代理只暴露 `sandbox_*` 工具，并绑定到自己的 workspace。
 
 本地工具示例（`agent.runtime.ts`）：
 
@@ -320,9 +322,21 @@ registry.registerLocalTool({
   }),
   executionMode: "sequential",
   timeoutMs: 10000,
-  invoke: async (input) => { /* ... */ },
+  invoke: async (input, context) => {
+    const backend = await resolveBackend(context);
+    return backend.readFile(input.path, { offset: input.offset, limit: input.limit });
+  },
 });
 ```
+
+### 3.1 Subagent Sandbox
+
+- `planner` / `researcher` 子代理继续使用受限白名单工具
+- `coder` 子代理在启动时会创建独立 workspace：`${AGENT_SANDBOX_ROOT:-.agent/sandboxes}/{subThreadId}/workspace`
+- sandbox workspace 会复制当前项目快照，并排除 `.git`、`node_modules`、`dist`、`.next`、`.agent` 等目录
+- `coder` 只能调用 `sandbox_read_file`、`sandbox_write_file`、`sandbox_list_files`、`sandbox_execute_command`
+- sandbox 路径必须是相对路径，禁止绝对路径、`..` 路径逃逸和符号链接穿透
+- 子代理结果会返回 sandbox 元数据，包括 `backendId`、`workspaceRoot` 和 `preserved`
 
 ### 4. Skill System
 
@@ -509,7 +523,7 @@ cp .env.example .env
 
 ### 文件系统工具的安全风险？
 
-`read_file`, `write_file`, `execute_command` 等工具默认不限制路径。如需沙箱，在工具实现中加入路径白名单检查。
+宿主机工具 `read_file`, `write_file`, `execute_command` 仍按后端进程工作目录执行，不做路径隔离。`coder` 子代理默认改为使用独立 sandbox workspace；可通过 `AGENT_SANDBOX_ROOT` 调整 sandbox 根目录。
 
 ---
 

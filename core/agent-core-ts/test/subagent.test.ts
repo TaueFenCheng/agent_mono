@@ -3,6 +3,7 @@ import { runSubagents } from "../ts/subagent.js";
 
 describe("subagent orchestrator", () => {
   it("uses isolated sub-thread ids and keeps partial results on failure", async () => {
+    const toolContexts: Array<Record<string, unknown> | undefined> = [];
     const output = await runSubagents(
       {
         threadId: "thread-main",
@@ -14,6 +15,7 @@ describe("subagent orchestrator", () => {
       },
       {
         invoke: async (input) => {
+          toolContexts.push(input.toolContext);
           if (input.prompt.includes("fail task")) {
             throw new Error("boom");
           }
@@ -31,7 +33,15 @@ describe("subagent orchestrator", () => {
         defaultMaxConcurrency: 2,
         defaultTaskTimeoutMs: 1000,
         maxTasksPerRun: 8,
-        failurePolicy: "continue_on_error"
+        failurePolicy: "continue_on_error",
+        resolveToolContext: async ({ role, subThreadId }) =>
+          role === "coder"
+            ? { executionBackendId: `sandbox:${subThreadId}`, sandboxSubThreadId: subThreadId, sandboxWorkspaceRoot: `/tmp/${subThreadId}` }
+            : undefined,
+        getSandboxInfo: (subThreadId) =>
+          subThreadId.endsWith(":b")
+            ? { backendId: `sandbox:${subThreadId}`, workspaceRoot: `/tmp/${subThreadId}`, preserved: true }
+            : null
       }
     );
 
@@ -41,6 +51,8 @@ describe("subagent orchestrator", () => {
     expect(output.failedTasks).toHaveLength(1);
     expect(output.results[0]?.threadId).toContain("thread-main:sub:run-1:a");
     expect(output.results[1]?.threadId).toContain("thread-main:sub:run-1:b");
+    expect(toolContexts.some((item) => item && "executionBackendId" in item)).toBe(true);
+    expect(output.results[1]?.sandbox?.workspaceRoot).toContain("/tmp/thread-main:sub:run-1:b");
   });
 
   it("marks timeout status when subagent exceeds timeout", async () => {

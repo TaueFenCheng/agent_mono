@@ -31,6 +31,7 @@ Reference inspirations:
 - `loadMcpPluginsFromEnv()` for runtime plugin injection
 - Built-in tools for time/echo/calculate/memory/skills operations
 - Runtime-local tools can extend the registry with orchestration capabilities such as `invoke_subagents`
+- Tool invocation context supports per-run `toolContext`, enabling runtime-specific backends such as subagent sandboxes
 - Checkpointer-backed thread history helpers (`listThreads`, `getThread`)
 - MCP runtime methods: list loaded plugins, list MCP tools, invoke MCP tool
 

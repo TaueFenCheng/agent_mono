@@ -87,6 +87,7 @@ export class AgentCore {
       threadId: input.threadId,
       runId: input.runId,
       metadata: input.metadata,
+      toolContext: input.toolContext,
       enabledSkills: input.enabledSkills,
       memoryStore: this.options.memoryStore,
       skillRegistry: this.skillRegistry,
@@ -156,7 +157,8 @@ export class AgentCore {
             metadata: subInput.metadata,
             enabledSkills: subInput.enabledSkills,
             runId: subInput.runId,
-            toolAllowlist: subInput.toolAllowlist
+            toolAllowlist: subInput.toolAllowlist,
+            toolContext: subInput.toolContext
           })
       },
       {
@@ -165,7 +167,9 @@ export class AgentCore {
         maxTasksPerRun: this.options.subagent?.maxTasksPerRun ?? 8,
         failurePolicy: this.options.subagent?.failurePolicy ?? "continue_on_error",
         roleModelOverrides: this.options.subagent?.roleModelOverrides,
-        roleToolAllowlist: this.options.subagent?.roleToolAllowlist
+        roleToolAllowlist: this.options.subagent?.roleToolAllowlist,
+        resolveToolContext: this.options.subagent?.resolveToolContext,
+        getSandboxInfo: this.options.subagent?.getSandboxInfo
       }
     );
   }
@@ -195,6 +199,7 @@ export class AgentCore {
           threadId,
           runId: input.runId,
           metadata: input.metadata,
+          toolContext: input.toolContext,
           enabledSkills: input.enabledSkills,
           memoryStore: this.options.memoryStore,
           skillRegistry: this.skillRegistry,
@@ -358,7 +363,8 @@ export class AgentCore {
                 metadata: subInput.metadata,
                 enabledSkills: subInput.enabledSkills,
                 runId: subInput.runId,
-                toolAllowlist: subInput.toolAllowlist
+                toolAllowlist: subInput.toolAllowlist,
+                toolContext: subInput.toolContext
               })
           },
           {
@@ -367,7 +373,9 @@ export class AgentCore {
             maxTasksPerRun: this.options.subagent?.maxTasksPerRun ?? 8,
             failurePolicy: this.options.subagent?.failurePolicy ?? "continue_on_error",
             roleModelOverrides: this.options.subagent?.roleModelOverrides,
-            roleToolAllowlist: this.options.subagent?.roleToolAllowlist
+            roleToolAllowlist: this.options.subagent?.roleToolAllowlist,
+            resolveToolContext: this.options.subagent?.resolveToolContext,
+            getSandboxInfo: this.options.subagent?.getSandboxInfo
           },
           async (event) => {
             stream.push(event);

@@ -91,6 +91,8 @@ Three tool registration mechanisms:
 2. **Local tools**: Register via `registerLocalTool()` with Zod schema
 3. **MCP plugins**: Load tools from external MCP servers via `useMcpPlugin()`
 
+The current TS backend also provides host file tools (`read_file`, `write_file`, `list_files`, `execute_command`) and sandbox-only tools for the `coder` subagent (`sandbox_read_file`, `sandbox_write_file`, `sandbox_list_files`, `sandbox_execute_command`). `coder` subagents get an isolated workspace under `${AGENT_SANDBOX_ROOT:-.agent/sandboxes}` and only see the sandbox tool allowlist.
+
 ### Skill system
 Loads `SKILL.md` files from `skills/`, `.claude/skills/` etc. Skills are markdown with YAML frontmatter. Enabled via `AGENT_ENABLED_SKILLS` env var.
 
@@ -110,3 +112,4 @@ Key env vars in `.env.example`:
 - `AGENT_CHECKPOINTER_BACKEND` - `memory` or `postgres`
 - `AGENT_ENABLED_SKILLS` - comma-separated skill names
 - `AGENT_MCP_SERVERS_JSON` - MCP server config
+- `AGENT_SANDBOX_ROOT` - root directory for `coder` subagent workspace sandboxes

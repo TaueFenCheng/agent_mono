@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import {
   AgentCore,
+  type AgentToolRegistry,
   type CoreProvider,
   type AgentRunEvent,
   DefaultAgentToolRegistry,
@@ -21,12 +22,138 @@ import {
 import { PrismaMemoryStore } from "../infra/prisma-memory.store.js";
 import { z } from "zod";
 import path from "path";
+import { HostExecutionBackend, type ExecutionBackend, SandboxManager } from "./execution-backend.js";
 
 const CORE_PROVIDERS = new Set<CoreProvider>(["qwen", "glm", "openai", "anthropic", "gemini", "deepseek"]);
 
 function asCoreProvider(value?: string): CoreProvider | undefined {
   if (!value) return undefined;
   return CORE_PROVIDERS.has(value as CoreProvider) ? (value as CoreProvider) : undefined;
+}
+
+const READ_FILE_SCHEMA = z.object({
+  path: z.string().describe("File path"),
+  offset: z.number().optional().describe("Starting line number (0-based)"),
+  limit: z.number().optional().describe("Number of lines to read")
+});
+
+const WRITE_FILE_SCHEMA = z.object({
+  path: z.string().describe("File path"),
+  content: z.string().describe("Content to write")
+});
+
+const EXECUTE_COMMAND_SCHEMA = z.object({
+  command: z.string().describe("Shell command to execute"),
+  workdir: z.string().optional().describe("Working directory"),
+  timeout: z.number().optional().default(30000).describe("Timeout in ms")
+});
+
+const LIST_FILES_SCHEMA = z.object({
+  path: z.string().describe("Directory path"),
+  pattern: z.string().optional().describe("Glob pattern filter, e.g. *.ts")
+});
+
+const SANDBOX_TOOL_CONTEXT_SCHEMA = z.object({
+  executionBackendId: z.string().min(1),
+  sandboxSubThreadId: z.string().min(1),
+  sandboxWorkspaceRoot: z.string().min(1)
+});
+
+function registerExecutionTools(args: {
+  registry: AgentToolRegistry;
+  resolveBackend: (context: { toolContext?: Record<string, unknown> }) => Promise<ExecutionBackend> | ExecutionBackend;
+  prefix?: string;
+  sandboxOnly?: boolean;
+}) {
+  const { registry, resolveBackend, prefix = "", sandboxOnly = false } = args;
+  const name = (base: string) => `${prefix}${base}`;
+  const pathDescription = sandboxOnly ? "Relative path inside the sandbox workspace." : "File path (absolute or relative).";
+  const workdirDescription = sandboxOnly ? "Relative working directory inside the sandbox workspace." : "Working directory.";
+
+  registry.registerLocalTool({
+    name: name("read_file"),
+    description: sandboxOnly
+      ? "Read file content from the sandbox workspace. Supports optional line offset."
+      : "Read the full content of a file by path. Supports optional line offset.",
+    schema: READ_FILE_SCHEMA.extend({
+      path: z.string().describe(pathDescription)
+    }),
+    executionMode: "sequential",
+    timeoutMs: 10000,
+    invoke: async (input, context) => {
+      const backend = await resolveBackend(context);
+      return backend.readFile(input.path, { offset: input.offset, limit: input.limit });
+    }
+  });
+
+  registry.registerLocalTool({
+    name: name("write_file"),
+    description: sandboxOnly
+      ? "Write content to a file inside the sandbox workspace."
+      : "Write content to a file. Creates parent directories if needed.",
+    schema: WRITE_FILE_SCHEMA.extend({
+      path: z.string().describe(pathDescription)
+    }),
+    executionMode: "sequential",
+    timeoutMs: 10000,
+    invoke: async (input, context) => {
+      const backend = await resolveBackend(context);
+      return backend.writeFile(input.path, input.content);
+    }
+  });
+
+  registry.registerLocalTool({
+    name: name("execute_command"),
+    description: sandboxOnly
+      ? "Execute a shell command inside the sandbox workspace and return stdout/stderr."
+      : "Execute a shell command and return stdout/stderr.",
+    schema: EXECUTE_COMMAND_SCHEMA.extend({
+      workdir: z.string().optional().describe(workdirDescription)
+    }),
+    executionMode: "sequential",
+    timeoutMs: 60000,
+    invoke: async (input, context) => {
+      const backend = await resolveBackend(context);
+      return backend.execute(input.command, {
+        workdir: input.workdir,
+        timeout: input.timeout
+      });
+    }
+  });
+
+  registry.registerLocalTool({
+    name: name("list_files"),
+    description: sandboxOnly
+      ? "List files and directories in the sandbox workspace. Supports glob pattern."
+      : "List files and directories in a given path. Supports glob pattern.",
+    schema: LIST_FILES_SCHEMA.extend({
+      path: z.string().describe(sandboxOnly ? "Relative directory path inside the sandbox workspace." : "Directory path")
+    }),
+    executionMode: "sequential",
+    timeoutMs: 10000,
+    invoke: async (input, context) => {
+      const backend = await resolveBackend(context);
+      return backend.listFiles(input.path, input.pattern);
+    }
+  });
+}
+
+function resolveSandboxBackend(sandboxManager: SandboxManager, toolContext?: Record<string, unknown>): ExecutionBackend {
+  const parsed = SANDBOX_TOOL_CONTEXT_SCHEMA.safeParse(toolContext ?? {});
+  if (!parsed.success) {
+    throw new Error("Sandbox execution requires toolContext with executionBackendId, sandboxSubThreadId, and sandboxWorkspaceRoot.");
+  }
+  const session = sandboxManager.getSession(parsed.data.sandboxSubThreadId);
+  if (!session) {
+    throw new Error(`Sandbox session not found for sub-thread: ${parsed.data.sandboxSubThreadId}`);
+  }
+  if (session.backendId !== parsed.data.executionBackendId) {
+    throw new Error(`Sandbox backend mismatch: expected ${session.backendId}, got ${parsed.data.executionBackendId}`);
+  }
+  if (session.workspaceRoot !== parsed.data.sandboxWorkspaceRoot) {
+    throw new Error(`Sandbox workspace mismatch: expected ${session.workspaceRoot}, got ${parsed.data.sandboxWorkspaceRoot}`);
+  }
+  return session.backend;
 }
 
 export interface AgentRuntime {
@@ -62,6 +189,11 @@ async function createCore(prisma: PrismaClient): Promise<AgentRuntime> {
 
   const registry = registerBuiltinTools(new DefaultAgentToolRegistry());
   const skillRegistry = new SkillRegistry();
+  const hostExecutionBackend = new HostExecutionBackend(process.cwd());
+  const sandboxManager = new SandboxManager({
+    baseDir: process.env.AGENT_SANDBOX_ROOT ?? path.resolve(process.cwd(), ".agent", "sandboxes"),
+    sourceProjectRoot: process.cwd()
+  });
   let runtimeRef: AgentRuntime | null = null;
 
   const mcpPlugins = await loadMcpPluginsFromEnv();
@@ -69,104 +201,15 @@ async function createCore(prisma: PrismaClient): Promise<AgentRuntime> {
     registry.useMcpPlugin(plugin);
   }
 
-  // ── 文件系统和命令执行工具 ──
-  registry.registerLocalTool({
-    name: "read_file",
-    description: "Read the full content of a file by path. Supports optional line offset.",
-    schema: z.object({
-      path: z.string().describe("File path (absolute or relative)"),
-      offset: z.number().optional().describe("Starting line number (0-based)"),
-      limit: z.number().optional().describe("Number of lines to read"),
-    }),
-    executionMode: "sequential",
-    timeoutMs: 10000,
-    invoke: async (input) => {
-      const fs = await import("fs/promises");
-      const filePath = path.resolve(input.path);
-      const content = await fs.readFile(filePath, "utf-8");
-      if (input.offset !== undefined || input.limit !== undefined) {
-        const lines = content.split("\n");
-        const start = input.offset ?? 0;
-        const end = input.limit ? start + input.limit : lines.length;
-        return lines.slice(start, end).join("\n");
-      }
-      return content;
-    },
+  registerExecutionTools({
+    registry,
+    resolveBackend: () => hostExecutionBackend
   });
-
-  registry.registerLocalTool({
-    name: "write_file",
-    description: "Write content to a file. Creates parent directories if needed.",
-    schema: z.object({
-      path: z.string().describe("File path"),
-      content: z.string().describe("Content to write"),
-    }),
-    executionMode: "sequential",
-    timeoutMs: 10000,
-    invoke: async (input) => {
-      const fs = await import("fs/promises");
-      const filePath = path.resolve(input.path);
-      await fs.mkdir(path.dirname(filePath), { recursive: true });
-      await fs.writeFile(filePath, input.content, "utf-8");
-      const stat = await fs.stat(filePath);
-      return `Written ${filePath} (${stat.size} bytes)`;
-    },
-  });
-
-  registry.registerLocalTool({
-    name: "execute_command",
-    description: "Execute a shell command and return stdout/stderr.",
-    schema: z.object({
-      command: z.string().describe("Shell command to execute"),
-      workdir: z.string().optional().describe("Working directory"),
-      timeout: z.number().optional().default(30000).describe("Timeout in ms"),
-    }),
-    executionMode: "sequential",
-    timeoutMs: 60000,
-    invoke: async (input) => {
-      const { execSync } = await import("child_process");
-      try {
-        const output = execSync(input.command, {
-          cwd: input.workdir ?? process.cwd(),
-          timeout: input.timeout ?? 30000,
-          encoding: "utf-8",
-          maxBuffer: 10 * 1024 * 1024,
-        });
-        return output || "(command completed with no output)";
-      } catch (error: unknown) {
-        const err = error as { stdout?: string; stderr?: string; message?: string };
-        if (err.stdout) return err.stdout;
-        if (err.stderr) return `Error: ${err.stderr}`;
-        return `Execution failed: ${err.message ?? String(error)}`;
-      }
-    },
-  });
-
-  registry.registerLocalTool({
-    name: "list_files",
-    description: "List files and directories in a given path. Supports glob pattern.",
-    schema: z.object({
-      path: z.string().describe("Directory path"),
-      pattern: z.string().optional().describe("Glob pattern filter, e.g. *.ts"),
-    }),
-    executionMode: "sequential",
-    timeoutMs: 10000,
-    invoke: async (input) => {
-      const fs = await import("fs/promises");
-      const dirPath = path.resolve(input.path);
-      const entries = await fs.readdir(dirPath, { withFileTypes: true });
-      const results = [];
-      for (const entry of entries) {
-        const isDir = entry.isDirectory();
-        const size = isDir ? null : (await fs.stat(path.join(dirPath, entry.name))).size;
-        if (input.pattern) {
-          const re = new RegExp("^" + input.pattern.replace(/\*/g, ".*").replace(/\?/g, ".") + "$");
-          if (!re.test(entry.name)) continue;
-        }
-        results.push({ name: entry.name, type: isDir ? "dir" : "file", size });
-      }
-      return results;
-    },
+  registerExecutionTools({
+    registry,
+    prefix: "sandbox_",
+    sandboxOnly: true,
+    resolveBackend: async (context) => resolveSandboxBackend(sandboxManager, context.toolContext)
   });
 
   registry.registerLocalTool({
@@ -318,10 +361,40 @@ async function createCore(prisma: PrismaClient): Promise<AgentRuntime> {
             model: process.env.AGENT_SUBAGENT_CODER_MODEL
           }
         },
+        resolveToolContext: async ({ role, subThreadId }) => {
+          if (role !== "coder") return undefined;
+          const session = await sandboxManager.ensureSession(subThreadId, role);
+          return {
+            executionBackendId: session.backendId,
+            sandboxSubThreadId: session.subThreadId,
+            sandboxWorkspaceRoot: session.workspaceRoot
+          };
+        },
+        getSandboxInfo: (subThreadId) => {
+          const session = sandboxManager.getSession(subThreadId);
+          if (!session) return null;
+          return {
+            backendId: session.backendId,
+            workspaceRoot: session.workspaceRoot,
+            preserved: session.preserved
+          };
+        },
         roleToolAllowlist: {
           planner: ["list_skills", "read_skill", "echo_text", "get_time"],
           researcher: ["list_skills", "read_skill", "list_memory", "get_time", "echo_text"],
-          coder: ["list_skills", "read_skill", "remember_fact", "list_memory", "calculate", "echo_text", "get_time"]
+          coder: [
+            "list_skills",
+            "read_skill",
+            "remember_fact",
+            "list_memory",
+            "calculate",
+            "echo_text",
+            "get_time",
+            "sandbox_read_file",
+            "sandbox_write_file",
+            "sandbox_list_files",
+            "sandbox_execute_command"
+          ]
         }
       }
     }),

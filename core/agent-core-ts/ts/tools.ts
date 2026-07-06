@@ -138,7 +138,12 @@ export class DefaultAgentToolRegistry implements AgentToolRegistry {
   async buildTools(options: BuildToolOptions = {}): Promise<StructuredToolInterface[]> {
     const tools = new Map<string, StructuredToolInterface>();
     const executionCoordinator = new ToolExecutionCoordinator();
-    const context: ToolInvocationContext = { threadId: options.threadId, runId: options.runId, metadata: options.metadata };
+    const context: ToolInvocationContext = {
+      threadId: options.threadId,
+      runId: options.runId,
+      metadata: options.metadata,
+      toolContext: options.toolContext
+    };
 
     for (const [name, existingTool] of this.structuredTools.entries()) {
       tools.set(name, wrapToolWithPolicy(existingTool, options, executionCoordinator));

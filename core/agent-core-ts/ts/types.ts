@@ -57,6 +57,7 @@ export interface AgentInvokeInput {
   runId?: string;
   messages?: BaseMessageLike[];
   toolAllowlist?: string[];
+  toolContext?: Record<string, unknown>;
   providerConfigs?: Record<string, ProviderRuntimeConfig>;
 }
 
@@ -91,6 +92,11 @@ export interface SubagentResult {
   endedAt: string;
   durationMs: number;
   checkpointId?: string | null;
+  sandbox?: {
+    backendId: string;
+    workspaceRoot: string;
+    preserved: boolean;
+  } | null;
 }
 
 export interface SubagentRunInput {
@@ -123,6 +129,7 @@ export interface ToolInvocationContext {
   threadId?: string;
   runId?: string;
   metadata?: Record<string, unknown>;
+  toolContext?: Record<string, unknown>;
 }
 
 export type McpServiceMap = Record<string, unknown>;
@@ -211,6 +218,10 @@ export interface AgentCoreOptions {
     failurePolicy?: SubagentFailurePolicy;
     roleModelOverrides?: Partial<Record<SubagentRole, { provider?: string; model?: string }>>;
     roleToolAllowlist?: Partial<Record<SubagentRole, string[]>>;
+    resolveToolContext?: (
+      task: { role: SubagentRole; taskId: string; subThreadId: string; runId: string }
+    ) => Promise<Record<string, unknown> | undefined> | Record<string, unknown> | undefined;
+    getSandboxInfo?: (subThreadId: string) => { backendId: string; workspaceRoot: string; preserved: boolean } | null;
   };
   toolRegistry?: AgentToolRegistry;
   checkpointSaver?: BaseCheckpointSaver;
@@ -255,6 +266,7 @@ export interface BuildToolOptions {
   threadId?: string;
   runId?: string;
   metadata?: Record<string, unknown>;
+  toolContext?: Record<string, unknown>;
   enabledSkills?: string[];
   memoryStore?: MemoryStore;
   skillRegistry?: SkillRegistryLike;
