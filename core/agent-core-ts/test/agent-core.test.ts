@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { END, START, MessagesAnnotation, StateGraph } from "@langchain/langgraph";
@@ -11,6 +12,13 @@ describe("agent-core-ts advanced capabilities", () => {
     const registry = new SkillRegistry(path.resolve(__dirname, "../../../skills"));
     const skills = registry.listSkills();
     expect(skills.some((skill) => skill.name === "engineering-default")).toBe(true);
+  });
+
+  it("uses the LangChain v1 agent factory", async () => {
+    const source = await readFile(path.resolve(__dirname, "../ts/agent.ts"), "utf-8");
+
+    expect(source).toContain('import { createAgent } from "langchain"');
+    expect(source).not.toContain("createReactAgent");
   });
 
   it("stores memory facts in memory", async () => {

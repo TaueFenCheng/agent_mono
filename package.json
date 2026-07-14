@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.4.0",
   "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev:web": "pnpm --filter @intelligent-agent/web dev",
     "dev:desktop": "pnpm --filter @intelligent-agent/desktop-electron dev",

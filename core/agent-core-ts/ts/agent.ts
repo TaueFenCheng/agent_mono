@@ -1,5 +1,5 @@
 import { AIMessage, HumanMessage, type BaseMessage } from "@langchain/core/messages";
-import { createReactAgent } from "@langchain/langgraph/prebuilt";
+import { createAgent } from "langchain";
 import type { StreamMode } from "@langchain/langgraph";
 import { getLatestCheckpointId, getThread, listThreads } from "./checkpointer";
 import { createAgentEventStream, type AgentEventStream } from "./event-stream";
@@ -113,10 +113,10 @@ export class AgentCore {
     const skillContext = this.skillRegistry.renderPromptContext({ enabledNames: input.enabledSkills });
     if (skillContext) promptSections.push(skillContext);
 
-    const graph = createReactAgent({
-      llm: routed.chatModel,
+    const graph = createAgent({
+      model: routed.chatModel,
       tools,
-      prompt: promptSections.join("\n\n"),
+      systemPrompt: promptSections.join("\n\n"),
       checkpointer: this.options.checkpointSaver,
       name: "intelligent-agent-core"
     });
@@ -229,10 +229,10 @@ export class AgentCore {
         const skillCtx = this.skillRegistry.renderPromptContext({ enabledNames: input.enabledSkills });
         if (skillCtx) promptSections.push(skillCtx);
 
-        const graph = createReactAgent({
-          llm: routed.chatModel,
+        const graph = createAgent({
+          model: routed.chatModel,
           tools,
-          prompt: promptSections.join("\n\n"),
+          systemPrompt: promptSections.join("\n\n"),
           checkpointer: this.options.checkpointSaver,
           name: "intelligent-agent-core"
         });
@@ -246,13 +246,16 @@ export class AgentCore {
         // 1st try: streamEvents (v2 structured events)
         let streamedTokens = false;
         try {
-          const eventStream = graph.streamEvents(streamInput, {
+          const eventStream = await graph.streamEvents(streamInput, {
             ...cfg(),
             streamMode: ["messages"] as StreamMode[],
             version: "v2"
           } as any);
 
-          for await (const event of eventStream) {
+          for await (const event of eventStream as AsyncIterable<{
+            event?: string;
+            data?: { chunk?: { content?: unknown; additional_kwargs?: Record<string, unknown> } };
+          }>) {
             if (event.event !== "on_chat_model_stream") continue;
             const chunk = event.data?.chunk;
             if (!chunk) continue;
