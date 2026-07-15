@@ -30,6 +30,9 @@ English docs: `README.md`
 - 内置工具：时间/回显/计算/记忆/skills
 - 基于 checkpointer 的线程历史能力：`listThreads`、`getThread`
 - MCP 运行时能力：列出已加载插件、列出 MCP 工具、调用 MCP 工具
+- 可注入的 `AgentRuntime` facade：统一组装 `AgentCore`、Memory、工具、checkpointer 和关闭资源
+
+`AgentRuntime` 不依赖具体基础设施。TypeScript backend 通过依赖注入提供 Prisma Memory、checkpointer 以及宿主机/Sandbox 执行工具；这些实现不属于 Core 包。
 
 ## MCP 插件注入
 

@@ -34,6 +34,9 @@ Reference inspirations:
 - Tool invocation context supports per-run `toolContext`, enabling runtime-specific backends such as subagent sandboxes
 - Checkpointer-backed thread history helpers (`listThreads`, `getThread`)
 - MCP runtime methods: list loaded plugins, list MCP tools, invoke MCP tool
+- Injectable `AgentRuntime` facade for composing `AgentCore` with host-provided memory, tools, checkpointer, and shutdown resources
+
+`AgentRuntime` is infrastructure-neutral. Hosts such as the TypeScript backend provide Prisma-backed memory, checkpointer setup, and sandbox/host execution tools through dependency injection; those implementations are not part of this package.
 
 ## MCP plugin injection
 

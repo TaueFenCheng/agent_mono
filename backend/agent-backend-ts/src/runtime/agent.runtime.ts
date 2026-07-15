@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import {
-  AgentCore,
+  createAgentRuntime,
+  type AgentRuntime as CoreAgentRuntime,
   type AgentToolRegistry,
   type CoreProvider,
   type AgentRunEvent,
@@ -156,10 +157,8 @@ function resolveSandboxBackend(sandboxManager: SandboxManager, toolContext?: Rec
   return session.backend;
 }
 
-export interface AgentRuntime {
-  core: AgentCore;
+export interface AgentRuntime extends CoreAgentRuntime {
   checkpointerKind: "memory" | "postgres";
-  close(): Promise<void>;
 }
 
 export interface ActiveModelConfig {
@@ -329,8 +328,16 @@ async function createCore(prisma: PrismaClient): Promise<AgentRuntime> {
     checkpointerManager = await createCheckpointerManager({ backend: "memory" });
   }
 
-  const runtime: AgentRuntime = {
-    core: new AgentCore({
+  const coreRuntime = createAgentRuntime({
+    toolRegistry: registry,
+    memoryStore,
+    skillRegistry,
+    checkpointSaver: checkpointerManager.saver,
+    mcpServices: {
+      prisma
+    },
+    close: checkpointerManager.close
+  }, {
       toolRegistry: registry,
       memoryStore,
       skillRegistry,
@@ -397,12 +404,11 @@ async function createCore(prisma: PrismaClient): Promise<AgentRuntime> {
           ]
         }
       }
-    }),
-    checkpointerKind: checkpointerManager.kind,
-    close: async () => {
-      await checkpointerManager.close();
-    }
-  };
+    });
+
+  const runtime: AgentRuntime = Object.assign(coreRuntime, {
+    checkpointerKind: checkpointerManager.kind
+  });
   runtimeRef = runtime;
   return runtime;
 }
